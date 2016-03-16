@@ -1,0 +1,3 @@
+[submodule "matlab_SEA"]
+	path = matlab_SEA
+	url = https://github.com/biorobotics/matlab_SEA.git
