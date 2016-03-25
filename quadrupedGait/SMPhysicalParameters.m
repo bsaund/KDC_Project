@@ -14,16 +14,16 @@ params.payloadMass = 0.0;  % kg
 % lengths, from Simon's "SMLegKinematics.m"
 moduleProxLength = .0254 *1.441; % m, length of the proximal end of module
 moduleDistLength = .0254 *1.075; % m, length of the distal end of module
-staticLength1 =  .0254 *2.480; % m, length of the thigh static link 
-staticLength2 =  .0254 *1.823; % m, length of the shin-outpointing static link 
-staticLength3 =  .0254 *5.418; % m, length of the shin-downpointing static link 
-footLength =  .0254 *1.863; % m, length of the foot
+params.staticLength1 =  .0254 *2.480; % m, length of the thigh static link 
+params.staticLength2 =  .0254 *1.823; % m, length of the shin-outpointing static link 
+params.staticLength3 =  .0254 *5.418; % m, length of the shin-downpointing static link 
+params.footLength =  .0254 *1.863; % m, length of the foot
 
 l1 = moduleProxLength;
 l2 = moduleDistLength+moduleProxLength;
-l3 = moduleDistLength+staticLength1+moduleProxLength;
-l4 = moduleDistLength+staticLength2;
-l5 = staticLength3+footLength;
+l3 = moduleDistLength+params.staticLength1+moduleProxLength;
+l4 = moduleDistLength+params.staticLength2;
+l5 = params.staticLength3+params.footLength;
 
 params.l = [l1 l2 l3 l4 l5];
 % the distances to the COM from the joints

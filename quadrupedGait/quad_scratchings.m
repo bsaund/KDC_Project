@@ -1,7 +1,5 @@
 % quadruped gait testing
-addpath('C:\Users\medgroup01\Documents\Julian\snake monster\quadruped gait\KDC_tools');
-addpath('C:\Users\medgroup01\Documents\Julian\snake monster\quadruped gait\hebi');
-addpath('C:\Users\medgroup01\Documents\Julian\snake monster\quadruped gait\matlab_SEA-3-21\plottingTools');
+addpath(genpath('C:\Users\medgroup01\Documents\Julian\snakeMonster\KDC_Project'));
 
 
 % the position of the chassis center is idendentity for now
