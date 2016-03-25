@@ -1,7 +1,7 @@
 % quadruped gait testing with HebiKinematics
 addpath(genpath('C:\Users\medgroup01\Documents\Julian\snakeMonster\KDC_Project'));
 
-th = zeros(3,6); % joint angles: each column is a leg (proximal to distal)
+th0 = zeros(3,6); % joint angles: each column is a leg (proximal to distal)
 params = SMPhysicalParameters();
 SMData = makeSMData(params);
 inch2m = 0.0254;
@@ -41,8 +41,8 @@ legKin{i}.addBody('FieldableElbowLink', ...
 legKin{i}.addBody('FieldableStraightLink', ...
     'ext', params.footLength-0.0122, 'twist', 0);
 
- frames{i} = legKin{i}.getForwardKinematics('output', th(:,i));
-  CoMs = legKin{i}.getForwardKinematics('CoM', th(:,i));
+ frames{i} = legKin{i}.getForwardKinematics('output', th0(:,i));
+  CoMs = legKin{i}.getForwardKinematics('CoM', th0(:,i));
   legCoM(:,i) = getXYZ(CoMs)*legKin{i}.getBodyMasses;
   masses(i) = sum(legKin{i}.getBodyMasses);
 effectors(:,i) = frames{i}(1:3,4,end);
@@ -65,7 +65,8 @@ xd(3,:) = xd(3,:)+.05;
 close all;
 effectors2= zeros(3,6); % xyz of effectors
 plt = SnakeMonsterPlotter(); hold on; 
-scatterCoM= scatter3(legCoM(1,:), legCoM(2,:), legCoM(3,:), 'k', 'filled');
+scatterCoM= scatter3(legCoM(1,:), legCoM(2,:), legCoM(3,:), 'k');
+projectedCOM = scatter3(0,0,0,'k', 'filled');
 supportLines = plot3(0,0,0,'k');
 
 a = .075; % step length = 2*a
@@ -77,9 +78,10 @@ a = .075; % step length = 2*a
   gravity = [0 0 -1]; % direction of gravity vector for gravity comp
  
   swingLegs = zeros(1,6); % 1 indicates leg is in the air 
- walkingLegs = [3 4 5 6]; % specify which legs will be used for walking
+ walkingLegs = [ 3 4 5 6]; % specify which legs will be used for walking
  nWalkingLegs = length(walkingLegs);
- stepOrderBase = [6 4 5 3 2 1];
+%  stepOrderBase = [6 4 5 3 2 1];
+ stepOrderBase = [6 1 5 2 3 4];
  stepOrder = [];
  extraLegs = [];
  % remove the non-walking legs from the step order
@@ -105,7 +107,7 @@ a = .075; % step length = 2*a
   legCoM(:,i) = getXYZ(CoMs)*legKin{i}.getBodyMasses/sum(legKin{i}.getBodyMasses);
  end    
  
-for t = linspace(0,2*pi,100)
+for t = linspace(0,6*pi,200)
 %  % find the jacobian
 %  legKin{6}.getJacobian('EndEffector', th(:,i))
 %  % find the gravity compensation torques
@@ -132,12 +134,22 @@ for t = linspace(0,2*pi,100)
   legCoM(:,i) = getXYZ(CoMs)*legKin{i}.getBodyMasses/sum(legKin{i}.getBodyMasses);
  end
 
- legCoM(:,end) = legCoM*masses/sum(masses);
+ legCoM(:,end) = legCoM*masses/sum(masses); % full body COM
  
  plt.plot(reshape(th_IK,[1,18]));
  scatter3(effectors2(1,:), effectors2(2,:), effectors2(3,:), 'r');
  scatter3(xd(1,:), xd(2,:), xd(3,:), [], swingLegs, 'filled');
  set(scatterCoM, 'xdata', legCoM(1,:), 'ydata',legCoM(2,:), 'zdata',legCoM(3,:));
+ 
+ % plot the support lines
+ xContact = xd(:,~swingLegs);
+ K = convhull(xContact(1:2,:).');
+ xOrdered = xContact(1:2,K.');
+ set(supportLines, 'xdata', xOrdered(1,:), 'ydata',xOrdered(2,:), ...
+     'zdata',ones(1,size(xOrdered,2))*mean(z0));
+  set(scatterCoM, 'xdata', legCoM(1,:), 'ydata',legCoM(2,:), 'zdata',legCoM(3,:));
+ set(projectedCOM, 'xdata', legCoM(1,end), 'ydata',legCoM(2,end), 'zdata',mean(z0));
+ 
  
 end
  
