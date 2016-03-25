@@ -1,4 +1,4 @@
-function xyz = getXYZ(gst)
-xyz = reshape(gst(1:3,4,:),[3,6]);
+function xyz = getXYZ(g)
+xyz = reshape(g(1:3,4,:),[3,size(g,3)]);
 
 end
