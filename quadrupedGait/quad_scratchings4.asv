@@ -1,0 +1,96 @@
+% quadruped gait testing with HebiKinematics
+% With simulation and sendCommands option.
+
+simulation = 1; %0 to turn off simulation
+sendCommands = 0; % 1 to turn on commands to real robot
+
+addpath(genpath('C:\Users\medgroup01\Documents\Julian\snakeMonster\KDC_Project'));
+% addpath(genpath('C:\Users\Julian\Box Sync\CMU sem 1+2\snakeMonster\KDC_project'));
+
+th0 = zeros(3,6); % joint angles: each column is a leg (proximal to distal)
+params = SMPhysicalParameters();
+SMData = makeSMData(params);
+inch2m = 0.0254;
+odd = [1,3,5]; even= [2 4 6];
+
+% initialize hebi object
+chassis_bend= 1.5; % degrees
+% transformation from the origin to the leg frame
+baseTransform = zeros(4,4,6);
+baseTransform(:,:,1) = [R_y(deg2rad(90-chassis_bend))*R_z(deg2rad(90))  [params.W/2; params.L/2; 0]; [0 0 0 1]];
+baseTransform(:,:,2) = [R_y(deg2rad(-90+chassis_bend))*R_z(deg2rad(90)) [-params.W/2; params.L/2; 0]; [0 0 0 1]];
+baseTransform(:,:,3) = [R_y(deg2rad(90-chassis_bend))*R_z(deg2rad(90))  [params.W/2; 0; 0]; [0 0 0 1]];
+baseTransform(:,:,4) = [R_y(deg2rad(-90+chassis_bend))*R_z(deg2rad(90)) [-params.W/2; 0; 0]; [0 0 0 1]];
+baseTransform(:,:,5) = [R_y(deg2rad(90-chassis_bend))*R_z(deg2rad(90))  [params.W/2; -params.L/2; 0]; [0 0 0 1]];
+baseTransform(:,:,6) = [R_y(deg2rad(-90+chassis_bend))*R_z(deg2rad(90)) [-params.W/2; -params.L/2; 0]; [0 0 0 1]];
+baseXYZ = getXYZ(baseTransform);
+
+legKin = cell(1,6);
+frames = cell(1,6);
+lastLinkTwist = [pi 0 pi 0 pi 0]-pi/2;
+legCoM = zeros(3,7); % last entry is the chassis
+masses = zeros(7,1); % last entry is the chassis
+masses(end) = params.robotMass;
+effectors= zeros(3,6); % xyz of effectors
+for i = 1:6
+legKin{i} = HebiKinematics();
+legKin{i}.setBaseFrame(baseTransform(:,:,i));
+legKin{i}.addBody('FieldableElbowJoint');
+legKin{i}.addBody('FieldableElbowJoint');
+legKin{i}.addBody('FieldableStraightLink', ...
+    'ext', params.staticLength1-.0122, 'twist', pi/2);
+legKin{i}.addBody('FieldableElbowJoint');
+legKin{i}.addBody('FieldableElbowLink', ...
+    'ext1', params.staticLength2 - 0.0360, 'twist1', lastLinkTwist(i), ...
+    'ext2', params.staticLength3 - 0.0336, 'twist2', 0);
+legKin{i}.addBody('FieldableStraightLink', ...
+    'ext', params.footLength-0.0122, 'twist', 0);
+
+ frames{i} = legKin{i}.getForwardKinematics('output', th0(:,i));
+  CoMs = legKin{i}.getForwardKinematics('CoM', th0(:,i));
+  legCoM(:,i) = getXYZ(CoMs)*legKin{i}.getBodyMasses;
+  masses(i) = sum(legKin{i}.getBodyMasses);
+effectors(:,i) = frames{i}(1:3,4,end);
+end
+% effectors
+
+th_IK = zeros(3,6);
+xyz0 = effectors;
+xd = effectors;
+
+% move all feet in towards chassis
+xd(1,odd) = xd(1,odd)-.1;
+xd(1,even) = xd(1,even)+.1;
+xd(3,:) = xd(3,:)+.05;
+
+
+if simulation
+    close all;
+plt = SnakeMonsterPlotter(); hold on; 
+scatterCoM= scatter3(legCoM(1,:), legCoM(2,:), legCoM(3,:), 'k');
+projectedCOM = scatter3(0,0,0,'k', 'filled');
+supportLines = plot3(0,0,0,'k');
+scatterCentroid = scatter3(0,0,0,'b');
+end
+
+if sendCommands
+    setupSnakeMonsterGroups;
+end
+% command structure for if sending commands
+      cmd = CommandStruct();
+        cmd.position = [];
+        cmd.velocity = [];
+        cmd.torque = [];
+        
+        
+a = .075; % step length = 2*a
+ b = .05; % step height = b
+ z0 = ones(1,6)*-.15;
+
+ y0 = zeros(1,6);
+ y0(odd)= [0 2*a a];
+ y0(even) = [a 0 a];
+ 
+ 
+ 
+ 
