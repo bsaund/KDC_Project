@@ -6,9 +6,9 @@ classdef SnakeMonsterKinematics < handle
     methods(Access = public)
         function this = SnakeMonsterKinematics()
         %SNAKEMONSTERKINEMATICS constructor, no arguments necessary
-            this.lfLeg = this.getLeg(1);
-            this.lmLeg = this.getLeg(1);
-            this.lbLeg = this.getLeg(1);
+            this.lfLeg = this.getLeg();
+            this.lmLeg = this.getLeg();
+            this.lbLeg = this.getLeg();
             this.rfLeg = this.getLeg();
             this.rmLeg = this.getLeg();
             this.rbLeg = this.getLeg();
@@ -21,11 +21,14 @@ classdef SnakeMonsterKinematics < handle
             offset = 1.5*pi/180;
             
             this.rfLeg.setBaseFrame(...
-                this.trans([width,length,0,pi/2+offset,0,pi/2]));
+                this.trans([width,length,0,pi/2+offset,0,pi/2]) * ...
+                this.rotz(pi));
             this.rmLeg.setBaseFrame(...
-                this.trans([width,0,0,pi/2+offset,0,pi/2]));
+                this.trans([width,0,0,pi/2+offset,0,pi/2]) * ...
+                this.rotz(pi));
             this.rbLeg.setBaseFrame(...
-                this.trans([width,-length,0,pi/2+offset,0,pi/2]));
+                this.trans([width,-length,0,pi/2+offset,0,pi/2]) * ...
+                this.rotz(pi));
             this.lfLeg.setBaseFrame(...
                 this.trans([-width,length,0,-pi/2-offset,0,pi/2]));
             this.lmLeg.setBaseFrame(...
@@ -35,20 +38,17 @@ classdef SnakeMonsterKinematics < handle
 
         end
         
-        function kin = getLeg(this, invertLeg)
+        function kin = getLeg(this)
         %Gets a HebiKinematics object for a leg
             
-            dir = 1;
-            if(nargin>1 && invertLeg)
-                dir = -1;
-            end
+
             links = {{'FieldableElbowJoint'},
                      {'FieldableElbowJoint'},
                      {'FieldableStraightLink', 'ext1', .063-.0122, 'twist', pi/2},
             %Straight links have a base length of 0.0122
                      {'FieldableElbowJoint'},
                      {'FieldableElbowLink', ...
-                      'ext1', 0.0463 - 0.0360, 'twist1', dir*pi/2, ...
+                      'ext1', 0.0463 - 0.0360, 'twist1', -pi/2, ...
                       'ext2', 0.046 - 0.0336, 'twist2', pi},
             %HEBI kinematics defaults to the elbow joint having
             %0.0336m on a side. Ours (apparently) has 0.046
@@ -66,7 +66,7 @@ classdef SnakeMonsterKinematics < handle
                         'twist', pi/2);
             kin.addBody('FieldableElbowJoint');
             kin.addBody('FieldableElbowLink', ...
-                        'ext1', 0.0463 - 0.0360, 'twist1', dir*pi/2, ...
+                        'ext1', 0.0463 - 0.0360, 'twist1', -pi/2, ...
                         'ext2', 0.1849 - 0.0336, 'twist2', pi)
             
             
