@@ -12,6 +12,7 @@ params = SMPhysicalParameters();
 SMData = makeSMData(params);
 inch2m = 0.0254;
 odd = [1,3,5]; even= [2 4 6];
+x =1; y =2; z = 3;
 
 % initialize hebi object
 chassis_bend= 1.5; % degrees
@@ -56,12 +57,12 @@ end
 
 th_IK = zeros(3,6);
 xyz0 = effectors;
-xd = effectors;
+xyz = effectors;
 
 % move all feet in towards chassis
-xd(1,odd) = xd(1,odd)-.1;
-xd(1,even) = xd(1,even)+.1;
-xd(3,:) = xd(3,:)+.05;
+xyz(1,odd) = xyz(1,odd)-.1;
+xyz(1,even) = xyz(1,even)+.1;
+xyz(3,:) = xyz(3,:)+.05;
 
 
 if simulation
@@ -83,17 +84,18 @@ end
         cmd.torque = [];
         
         
-a = .075; % step length = 2*a
+a = params.L/3; % step length = 2*a
  b = .05; % step height = b
  z0 = ones(1,6)*-.15;
 
  y0 = zeros(1,6);
  y0(odd)= [0 2*a a];
- y0(even) = [a 0 a];
+ y0(even) = [a 0 -a];
  
    swingLegs = zeros(1,6); % 1 indicates leg is in the air 
  walkingLegs = [ 2 3 4 5 6]; % specify which legs will be used for walking
  nWalkingLegs = length(walkingLegs);
+ fractionStep = 1/nWalkingLegs;
  stepOrderBase = [6 1 5 2 3 4];
  stepOrder = [];
  extraLegs = [];
@@ -109,19 +111,23 @@ a = .075; % step length = 2*a
  
  % set the non-walking legs to be up in the air
  for i = 1:(6-nWalkingLegs) 
-     xd(3,extraLegs(i)) =.5;
+     xyz(3,extraLegs(i)) =.5;
+     xyz(2,extraLegs(i)) =.2*sign(xyz0(2,extraLegs(i)));
+     xyz(1,extraLegs(i)) =.1*sign(xyz0(1,extraLegs(i)));
  end
 
   % get initial IK
   for i = 1:6
-  th_IK(:,i) = legKin{i}.getInverseKinematics('xyz', xd(:,i));
+  th_IK(:,i) = legKin{i}.getInverseKinematics('xyz', xyz(:,i));
   frames{i} = legKin{i}.getForwardKinematics('output', th_IK(:,i));
   effectors(:,i) = frames{i}(1:3,4,end);
   CoMs = legKin{i}.getForwardKinematics('CoM', th_IK(:,i));
   legCoM(:,i) = getXYZ(CoMs)*legKin{i}.getBodyMasses/sum(legKin{i}.getBodyMasses);
- end    
+  end    
 
- for t = linspace(0,2*pi,100)
+  nCycles = 2;
+ 
+ for t = linspace(0,2*pi*nCycles,100*nCycles)
 %  % find the jacobian
 %  legKin{6}.getJacobian('EndEffector', th(:,i))
 %  % find the gravity compensation torques
@@ -131,8 +137,8 @@ a = .075; % step length = 2*a
     for i = 1:nWalkingLegs
         leg = stepOrder(i);
         t_leg = t+2*pi/nWalkingLegs*(i-1);
-        [xd(2,leg),xd(3,leg)] = ellipticalGait(a,b,y0(leg),z0(leg), t_leg);
-        if (mod(t_leg, 2*pi)<pi/2)&&(mod(t_leg, 2*pi)>0)
+        [xyz(2,leg),xyz(3,leg)] = ellipticalGait(a,b,y0(leg),z0(leg), fractionStep, t_leg);
+        if (mod(t_leg, 2*pi)<2*pi*fractionStep)&&(mod(t_leg, 2*pi)>0)
             swingLegs(leg) = 1;
         else
             swingLegs(leg) = 0;
@@ -141,7 +147,7 @@ a = .075; % step length = 2*a
     
  
  for i = 1:6
-  th_IK(:,i) = legKin{i}.getInverseKinematics('xyz', xd(:,i));
+  th_IK(:,i) = legKin{i}.getInverseKinematics('xyz', xyz(:,i));
    frames{i} = legKin{i}.getForwardKinematics('output', th_IK(:,i));
   effectors2(:,i) = frames{i}(1:3,4,end);
   CoMs = legKin{i}.getForwardKinematics('CoM', th_IK(:,i));
@@ -151,21 +157,24 @@ a = .075; % step length = 2*a
  legCoM(:,end) = legCoM*masses/sum(masses); % full body COM
  
  % plot the support polygon
- xContact = xd(:,~swingLegs);
+ xContact = xyz(:,~swingLegs);
  K = convhull(xContact(1:2,:).');
  xOrdered = xContact(1:2,K.');
+ % check if COM in the support poluygon
+ inSupport = inpolygon(legCoM(1,end),legCoM(2,end),xOrdered(1,:),xOrdered(2,:));
  % find the centroid of the support polygon
  xCentroid = mean(xOrdered(:,1:end-1),2);
  
   if simulation
  plt.plot(reshape(th_IK,[1,18]));
  scatter3(effectors2(1,:), effectors2(2,:), effectors2(3,:), 'r');
- scatter3(xd(1,:), xd(2,:), xd(3,:), [], swingLegs, 'filled');
+ scatter3(xyz(1,:), xyz(2,:), xyz(3,:), [], swingLegs, 'filled');
  set(scatterCoM, 'xdata', legCoM(1,:), 'ydata',legCoM(2,:), 'zdata',legCoM(3,:));
  set(supportLines, 'xdata', xOrdered(1,:), 'ydata',xOrdered(2,:), ...
      'zdata',ones(1,size(xOrdered,2))*mean(z0));
   set(scatterCoM, 'xdata', legCoM(1,:), 'ydata',legCoM(2,:), 'zdata',legCoM(3,:));
- set(projectedCOM, 'xdata', legCoM(1,end), 'ydata',legCoM(2,end), 'zdata',mean(z0));
+ set(projectedCOM, 'xdata', legCoM(1,end), 'ydata',legCoM(2,end), 'zdata',mean(z0),...
+     'markerFaceColor', [1 0 0]*~inSupport);
  set(scatterCentroid, 'xdata', xCentroid(1), 'ydata',xCentroid(2), 'zdata',mean(z0));
   end
   
