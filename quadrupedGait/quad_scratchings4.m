@@ -5,7 +5,7 @@
 
 simulation = 1; %0 to turn off simulation
 sendCommands = 1; % 1 to turn on commands to real robot
-plotting =0;
+plotting =1;
 
 addpath(genpath('C:\Users\medgroup01\Documents\Julian\snakeMonster\KDC_Project'));
 % addpath(genpath('C:\Users\Julian\Box Sync\CMU sem 1+2\snakeMonster\KDC_project'));
@@ -172,12 +172,11 @@ else
 end
 
    t_leg = t+2*pi/nWalkingLegs*(nWalkingLegs:-1:1);
-    % find the point on the eliptical path
     for i = 1:nWalkingLegs
         leg = stepOrder(i);
-%         [xyz(2,leg),xyz(3,leg)] = ellipticalGait(a,b,y0(leg),z0(leg), fractionStep, t_leg(i));  
         [xyz(2,leg),xyz(3,leg)] =...
             minJerkStepGait(stepWayPoints, jerkCoeffs, y0(leg), z0(leg),fractionStep, t_leg(i));
+        
         if (mod(t_leg(i), 2*pi)<2*pi*fractionStep)&&(mod(t_leg(i), 2*pi)>0)
             swingLegs(leg) = 1;
         else
@@ -200,11 +199,18 @@ end
  J = kin.getLegJacobians(th);
  % gravity compensation torques: (assumes fixed base)
  legTorques = kin.getLegGravCompTorques(th, gravity);
- for i=1:6
      % the force on each foot is the chassis weight plus the fixed module
      % segments, in the direction opposite gravity, divided evenly among
      % stance legs.
-    footWrench = -[gravity zeros(1,3)].' * (params.robotMass +sum(masses(1,:))/2)/sum(~swingLegs);
+     
+  xyzContact = effectors(:,~swingLegs);
+  bodyMass = (params.robotMass +sum(masses(1,:))/2);
+  cmdFootForce = zeros(6,1);
+  % the commanded foot force based on a best fit to the force distribution
+  cmdFootForce(~swingLegs) = pinv(xyzContact) * [0; 0; bodyMass]; 
+     
+ for i=1:6
+        footWrench = [0;0;cmdFootForce(i); zeros(3,1)];
      if ~swingLegs(i) % legs in the air just have grav comp. Stance legs have some weight on them:
       legTorques(:,i) =  legTorques(:,i) + J(:,:,i).'*footWrench;
      end 
@@ -217,9 +223,8 @@ end
  
  
  % plot the support polygon
- xContact = effectors(:,~swingLegs);
- K = convhull(xContact(1:2,:).');
- xOrdered = xContact(1:2,K.');
+ K = convhull(xyzContact(1:2,:).');
+ xOrdered = xyzContact(1:2,K.');
  % check if COM in the support poluygon
  inSupport = inpolygon(legCoM(1,end),legCoM(2,end),xOrdered(1,:),xOrdered(2,:));
  % find the centroid of the support polygon
@@ -258,7 +263,7 @@ axes(simAx); % change current ax to the one in the sm plotter
  end
   if sendCommands
       cmd.position = reshape(th,[1,18]);
-%       cmd.torque=reshape(legTorques, [1,18]);
+      cmd.torque=reshape(legTorques, [1,18]);
 %       cmd.velocity = thDot;
       snakeMonster.set(cmd);
   end
