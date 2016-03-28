@@ -4,7 +4,7 @@
 % uses minJerk coefficients (although possibly incorrectly)
 
 simulation = 1; %0 to turn off simulation
-sendCommands = 0; % 1 to turn on commands to real robot
+sendCommands = 1; % 1 to turn on commands to real robot
 plotting =0;
 
 addpath(genpath('C:\Users\medgroup01\Documents\Julian\snakeMonster\KDC_Project'));
@@ -63,7 +63,7 @@ stepOrderBase = [1 3 4 2 6  5]; % works best
 t = 0;
 a = params.L/3; % step length = 2*a
  b = .06; % step height = b
- z0 = ones(1,6)*-.1;
+ z0 = ones(1,6)*-.15;
  y0 = [params.L/2 params.L/2 0 0 -params.L/2 -params.L/2];
 %  y0(odd)=y0(odd)+ [0 2*a 0];  y0(even) =  y0(even) +[3*a 0 -3*a]; % works ok
  y0(odd)=y0(odd)+ [0 2*a 0];  y0(even) =  y0(even) +[3*a 0 -3*a];
@@ -151,7 +151,7 @@ disp('press any key to start')
 
   
   nCycles = 2;
-t_span = linspace(0,2*pi*nCycles,20*nCycles);
+t_span = linspace(0,2*pi*nCycles,25*nCycles);
 tic;
 tStart = 0;
 tRecord=[];
@@ -262,7 +262,7 @@ axes(simAx); % change current ax to the one in the sm plotter
 %       cmd.velocity = thDot;
       snakeMonster.set(cmd);
   end
- pause(0.05);
+ pause(0.01);
  end
 
  if sendCommands
