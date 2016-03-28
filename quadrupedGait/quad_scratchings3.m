@@ -110,7 +110,7 @@ a = .075; % step length = 2*a
  
 for t = linspace(0,6*pi,200)
 %  % find the jacobian
-%  legKin{6}.getJacobian('EndEffector', th(:,i))
+%  legKin{2}.getJacobian('EndEffector', th_IK(:,2))
 %  % find the gravity compensation torques
 %    legKin{6}.getGravCompTorques(th(:,i),gravity)
     
@@ -118,7 +118,7 @@ for t = linspace(0,6*pi,200)
     for i = 1:nWalkingLegs
         leg = stepOrder(i);
         t_leg = t+2*pi/nWalkingLegs*(i-1);
-        [xd(2,leg),xd(3,leg)] = ellipticalGait(a,b,y0(leg),z0(leg), t_leg);
+        [xd(2,leg),xd(3,leg)] = ellipticalGait(a,b,y0(leg),z0(leg),1/5, t_leg);
         if (mod(t_leg, 2*pi)<pi/2)&&(mod(t_leg, 2*pi)>0)
             swingLegs(leg) = 1;
         else

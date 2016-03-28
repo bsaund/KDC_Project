@@ -10,10 +10,10 @@
     
     maxTorque = 12; % N-m
 
-    gains.positionKp = ones(1, numModules) * 6.0;
+    gains.positionKp = ones(1, numModules) * 6.0;% past value: 6
     gains.positionKi = ones(1, numModules) * 0;
+    gains.positionKd = ones(1, numModules) * 10; % past value: 30
     gains.positionIClamp = ones(1, numModules) * 0;
-    gains.positionKd = ones(1, numModules) * 30;
     gains.positionFF = ones(1, numModules) * 0;
     gains.positionPunch = ones(1, numModules) * 0;
     gains.positionDeadZone = ones(1, numModules) * 0.00;
@@ -40,7 +40,7 @@
     gains.velocityOutputLowpassGain = ones(1, numModules) * 1;
     gains.velocityDOnError = ones(1, numModules) * 1;
 
-    gains.torqueKp = ones(1, numModules) * 0.5;
+    gains.torqueKp = ones(1, numModules) * .5; % past value .5
     gains.torqueKi = ones(1, numModules) * 0;
     gains.torqueIClamp = ones(1, numModules) * 0;
     gains.torqueKd = ones(1, numModules) * 25;

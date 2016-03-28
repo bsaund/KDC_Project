@@ -25,3 +25,4 @@ groupName = '*';
 
 snakeMonster = HebiLookup.newGroupFromNames(groupName, names);
    
+setGainsSM; % set the gains

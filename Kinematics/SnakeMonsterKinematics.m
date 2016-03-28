@@ -117,7 +117,35 @@ classdef SnakeMonsterKinematics < handle
           masses(:,6) = this.lbLeg.getBodyMasses();
           
       end
+      
+      function J = getLegJacobians(this, angles)
+        %Gets the jacobian (world frame) of all the legs 
+        %angles is a 18 element vector of joint angles
         
+            J = zeros(6,3,6);
+            J(:,:,1) = (this.rfLeg.getJacobian('EndEffector', angles(1:3)));
+            J(:,:,2) = (this.lfLeg.getJacobian('EndEffector', angles(4:6)));
+            J(:,:,3) = (this.rmLeg.getJacobian('EndEffector', angles(7:9)));
+            J(:,:,4) = (this.lmLeg.getJacobian('EndEffector', angles(10:12)));
+            J(:,:,5) = (this.rbLeg.getJacobian('EndEffector', angles(13:15)));           
+            J(:,:,6) = (this.lbLeg.getJacobian('EndEffector', angles(16:18)));
+            
+      end
+     function gravCompTorques = getLegGravCompTorques(this, angles, gravity)
+        %Gets the gravity compensation torques for the legs
+        %angles is a 18 element vector of joint angles
+        % gravity is a 1x3 vector which says which way gravity is pointing.
+        % returns a 3x6 where each colum is torques for a leg
+            gravCompTorques = zeros(3,6);
+            gravCompTorques(:,1) = (this.rfLeg.getGravCompTorques(angles(1:3),gravity));
+            gravCompTorques(:,2) = (this.lfLeg.getGravCompTorques(angles(4:6),gravity));
+            gravCompTorques(:,3) = (this.rmLeg.getGravCompTorques(angles(7:9),gravity));
+            gravCompTorques(:,4) = (this.lmLeg.getGravCompTorques(angles(10:12),gravity));
+            gravCompTorques(:,5) = (this.rbLeg.getGravCompTorques(angles(13:15),gravity));           
+            gravCompTorques(:,6) = (this.lbLeg.getGravCompTorques(angles(16:18),gravity));
+            
+      end
+      
         function angles = getIK(this, xd)
         %Gets the joint angles to position the feed at xd
         %xd is a 3x6 matrix of desired potiions
