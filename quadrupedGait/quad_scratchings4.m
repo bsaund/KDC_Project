@@ -2,8 +2,8 @@
 % With simulation and sendCommands option.
 
 simulation = 1; %0 to turn off simulation
-sendCommands = 0; % 1 to turn on commands to real robot
-plotting = 1;
+sendCommands = 1; % 1 to turn on commands to real robot
+plotting =0;
 
 addpath(genpath('C:\Users\medgroup01\Documents\Julian\snakeMonster\KDC_Project'));
 % addpath(genpath('C:\Users\Julian\Box Sync\CMU sem 1+2\snakeMonster\KDC_project'));
@@ -22,18 +22,19 @@ xyz0 = kin.getLegPositions(th0);
 xyz = xyz0;
 
 % move all feet in towards chassis
-xyz(1,odd) = xyz(1,odd)-.1;
-xyz(1,even) = xyz(1,even)+.1;
+xyz(1,odd) = xyz(1,odd)-.12;
+xyz(1,even) = xyz(1,even)+.12;
 xyz(3,:) = xyz(3,:)+.05;
 
         
 t = 0;
 a = params.L/3; % step length = 2*a
- b = .05; % step height = b
- z0 = ones(1,6)*-.15;
+ b = .075; % step height = b
+ z0 = ones(1,6)*-.2;
  y0 = [params.L/2 params.L/2 0 0 -params.L/2 -params.L/2];
- y0(odd)=y0(odd)+ [0 2*a 0];
- y0(even) =  y0(even) +[3*a 0 -3*a];
+%  y0(odd)=y0(odd)+ [0 2*a 0];  y0(even) =  y0(even) +[3*a 0 -3*a]; % works ok
+ y0(odd)=y0(odd)+ [0 2*a 0];  y0(even) =  y0(even) +[3*a 0 -3*a];
+
  
  
  % walking states: which legs are walking, swining, extra.
@@ -46,7 +47,8 @@ a = params.L/3; % step length = 2*a
 %   stepOrderBase = [1 3 5 2 4 6]; % fornt to back
 %    stepOrderBase = [1 2 3 4 6 5]; % works ok
 %    stepOrderBase = [1 4 3 6 2 5]; % works better
-stepOrderBase = [1 4 2 3 6  5]; % 
+% stepOrderBase = [1 4 2 3 6  5]; % works well
+stepOrderBase = [1 3 4 2 6  5]; 
 
  stepOrder = [];
  extraLegs = [];
@@ -94,6 +96,7 @@ end
  close all;
 if simulation
 plt = SnakeMonsterPlotter(); hold on; 
+simAx = get(gcf,'children');
 simFig = gcf;
 set(simFig, 'position', [100 100 800 800]);
 scatterCoM= scatter3(legCoM(1,:), legCoM(2,:), legCoM(3,:), 'k');
@@ -121,6 +124,11 @@ if plotting
 legend(torqueCmdPlot(1:3:end),'1','2','3','4','5','6')
 end
 
+ % command structure for if sending commands
+      cmd = CommandStruct();
+        cmd.position = [];
+        cmd.velocity = [];
+        cmd.torque = [];
 if sendCommands
          setupSnakeMonsterGroup; % makes the snakeMonster hebi group object
          
@@ -129,14 +137,10 @@ if sendCommands
 disp('press any key to start')
       pause;
  end
- % command structure for if sending commands
-      cmd = CommandStruct();
-        cmd.position = [];
-        cmd.velocity = [];
-        cmd.torque = [];
+
   
-  nCycles = 1;
-t_span = linspace(0,2*pi*nCycles,100*nCycles);
+  nCycles = 2;
+t_span = linspace(0,2*pi*nCycles,50*nCycles);
 tic;
 tStart = 0;
 tRecord=[];
@@ -213,8 +217,9 @@ end
   if simulation
 %  set(0, 'CurrentFigure', simFig)
  plt.plot(reshape(th,[1,18]));
-%  scatter3(effectors(1,:), effectors(2,:), effectors(3,:), 'r');
-%  scatter3(xyz(1,:), xyz(2,:), xyz(3,:), [], swingLegs, 'filled');
+axes(simAx); % change current ax to the one in the sm plotter
+ scatter3(effectors(1,:), effectors(2,:), effectors(3,:), 'r');
+ scatter3(xyz(1,:), xyz(2,:), xyz(3,:), [], swingLegs, 'filled');
  set(scatterCoM, 'xdata', legCoM(1,:), 'ydata',legCoM(2,:), 'zdata',legCoM(3,:));
  set(supportLines, 'xdata', xOrdered(1,:), 'ydata',xOrdered(2,:), ...
      'zdata',ones(1,size(xOrdered,2))*mean(z0));
@@ -240,11 +245,11 @@ end
  end
   if sendCommands
       cmd.position = reshape(th,[1,18]);
-      cmd.torque=reshape(legTorques, [1,18]);
-      cmd.velocity = thDot;
+%       cmd.torque=reshape(legTorques, [1,18]);
+%       cmd.velocity = thDot;
       snakeMonster.set(cmd);
   end
- pause(0.01);
+%  pause(0.01);
  end
 
  if sendCommands

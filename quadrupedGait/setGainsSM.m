@@ -12,7 +12,7 @@
 
     gains.positionKp = ones(1, numModules) * 6.0;% past value: 6
     gains.positionKi = ones(1, numModules) * 0;
-    gains.positionKd = ones(1, numModules) * 10; % past value: 30
+    gains.positionKd = ones(1, numModules) * 30; % past value: 30
     gains.positionIClamp = ones(1, numModules) * 0;
     gains.positionFF = ones(1, numModules) * 0;
     gains.positionPunch = ones(1, numModules) * 0;

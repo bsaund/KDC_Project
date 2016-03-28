@@ -2,7 +2,7 @@
 % With simulation and sendCommands option.
 
 simulation = 1; %0 to turn off simulation
-sendCommands = 0; % 1 to turn on commands to real robot
+sendCommands = 1; % 1 to turn on commands to real robot
 plotting = 1;
 
 addpath(genpath('C:\Users\medgroup01\Documents\Julian\snakeMonster\KDC_Project'));
@@ -241,7 +241,7 @@ end
   if sendCommands
       cmd.position = reshape(th,[1,18]);
       cmd.torque=reshape(legTorques, [1,18]);
-      cmd.velocity = thDot;
+%       cmd.velocity = thDot;
       snakeMonster.set(cmd);
   end
  pause(0.01);
