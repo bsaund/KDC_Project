@@ -9,7 +9,7 @@
     maxVelocityRadS = (33 * 2 * pi) / 60;
     
     maxTorque = 12; % N-m
-
+gains.controlStrategy= ones(1, numModules) *4; % strategy 4
     gains.positionKp = ones(1, numModules) * 6.0;% past value: 6
     gains.positionKi = ones(1, numModules) * 0;
     gains.positionKd = ones(1, numModules) * 30; % past value: 30
