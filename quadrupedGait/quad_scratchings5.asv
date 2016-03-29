@@ -2,6 +2,8 @@
 % With simulation and sendCommands option.
 % Can plot torques
 % uses minJerk coefficients (although possibly incorrectly)
+% now with step direction setting
+
 
 simulation = 1; %0 to turn off simulation
 sendCommands = 0; % 1 to turn on commands to real robot
@@ -64,18 +66,21 @@ end
 t = 0;
 a = params.L/3; % step length = 2*a
 b = .06; % step height = b
-z0 = ones(1,6)*-.15;
-y0 = [params.L/2 params.L/2 0 0 -params.L/2 -params.L/2];
+xyzStep0 = xyz0; % the point at which the step is centered 
+xyzStep0(3,:) = ones(1,6)*-.15;
+xyzStep0(2,:) = [params.L/2 params.L/2 0 0 -params.L/2 -params.L/2];
 %  y0(odd)=y0(odd)+ [0 2*a 0];  y0(even) =  y0(even) +[3*a 0 -3*a]; % works ok
-y0(odd)=y0(odd)+ [0 2*a 0];  y0(even) =  y0(even) +[3*a 0 -3*a];
+xyzStep0(2,odd)=y0(odd)+ [0 2*a 0];  xyzStep0(2,even) =  y0(even) +[3*a 0 -3*a];
+
 
 stepPeriod = 2*pi*fractionStep;  % how long the stepping lasts
 % solve for coefficients to create trajectory with min jerk
 jerkCoeffs = minimumJerk( 0, 0, 0, ... % Starting Phase/Vel/Accel
     1, 0, 0, ... % Ending Phase/Vel/Accel
     stepPeriod);  % Time to touchdown
-stepWayPoints = [-a 0; 0 b; a 0];
-
+stepWayPoints = [0 -a 0; 0 0 b; 0 a 0]; % determine which points the feet pass through
+stepDirection = 0; % the heading for the steps in terms of the body frame.
+  % 0 is straight ahead, pi/2 is walking right, etc.
 
 % get initial IK
 t_leg = t+2*pi/nWalkingLegs*(nWalkingLegs:-1:1);
@@ -83,9 +88,9 @@ t_leg = t+2*pi/nWalkingLegs*(nWalkingLegs:-1:1);
 for i = 1:nWalkingLegs
     leg = stepOrder(i);
     %         [xyz(2,leg),xyz(3,leg)] = ellipticalGait(a,b,y0(leg),z0(leg), fractionStep, t_leg(i));
-    [xyz(2,leg),xyz(3,leg)] =...
-        minJerkStepGait(stepWayPoints, jerkCoeffs, y0(leg), z0(leg),fractionStep, t_leg(i));
-    
+%     [xyz(2,leg),xyz(3,leg)] =...
+%         minJerkStepGait(stepWayPoints, jerkCoeffs, y0(leg), z0(leg),fractionStep, t_leg(i));
+    [xyz] = minJerkStepGait2(stepWayPoints, jerkCoeffs, xyzStep0, stepDirection, fractionStep, t)
     if (mod(t_leg(i), 2*pi)<2*pi*fractionStep)&&(mod(t_leg(i), 2*pi)>0)
         swingLegs(leg) = 1;
     else
@@ -164,12 +169,9 @@ torqueCmdRecord=[];
 xyzLast = xyz;
 xyzNext = xyz;
 
+
 for t = t_span
-    %  % find the jacobian
-    %  legKin{6}.getJacobian('EndEffector', th(:,i))
-    %  % find the gravity compensation torques
-    %    legKin{6}.getGravCompTorques(th(:,i),gravity)
-    
+       
     if sendCommands
         fbk = snakeMonster.getNextFeedback();
         thLast = fbk.position;

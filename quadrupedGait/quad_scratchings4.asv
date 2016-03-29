@@ -93,7 +93,7 @@ for i = 1:nWalkingLegs
     end
 end
 th = kin.getIK(xyz);
-xyzFK = kin.getLegPositions(th);
+effectors = kin.getLegPositions(th);
 CoMs = kin.getCenterOfMasses(th);
 masses = kin.getLegMasses();
 legCoM = zeros(3,7);
@@ -153,16 +153,12 @@ end
 
 
 nCycles = 2;
-nWaypoints = 25;
-t_span = linspace(0,2*pi*nCycles,nWaypoints*nCycles);
-dt = (2*pi*nCycles-0)/(nWaypoints*nCycles-1);
+t_span = linspace(0,2*pi*nCycles,25*nCycles);
 tic;
 tStart = 0;
 tRecord=[];
 torqueFbkRecord = [];
 torqueCmdRecord=[];
-xyzLast = xyz;
-xyzNext = xyz;
 
 for t = t_span
     %  % find the jacobian
@@ -177,18 +173,14 @@ for t = t_span
         thLast = th;
     end
     
-    % get the foot placement points
+    % get the 
     t_leg = t+2*pi/nWalkingLegs*(nWalkingLegs:-1:1);
     for i = 1:nWalkingLegs
         leg = stepOrder(i);
         [xyz(2,leg),xyz(3,leg)] =...
             minJerkStepGait(stepWayPoints, jerkCoeffs, y0(leg), z0(leg),fractionStep, t_leg(i));
-        [xyzNext(2,leg),xyzNext(3,leg)] =...
-            minJerkStepGait(stepWayPoints, jerkCoeffs, y0(leg), z0(leg),fractionStep, t_leg(i)+dt);
-%         [xyzLast(2,leg),xyzLast(3,leg)] =...
-%             minJerkStepGait(stepWayPoints, jerkCoeffs, y0(leg), z0(leg),fractionStep, t_leg(i)-dt);
         
-        if (mod(t_leg(i), 2*pi)<2*pi*fractionStep)
+        if (mod(t_leg(i), 2*pi)<2*pi*fractionStep)&&(mod(t_leg(i), 2*pi)>0)
             swingLegs(leg) = 1;
         else
             swingLegs(leg) = 0;
@@ -196,11 +188,8 @@ for t = t_span
     end
     
     th = kin.getIK(xyz);
-    thNext = kin.getIK(xyzNext);
-%     thLast = kin.getIK(xyzLast);
-
     % th = zeros(1,18); swingLegs = ones(1,6); % for testing only
-    xyzFK = kin.getLegPositions(th);
+    effectors = kin.getLegPositions(th);
     CoMs = kin.getCenterOfMasses(th);
     for i = 1:6
         legCoM(:,i) = CoMs(:,:,i)*masses(:,i)/sum(masses(:,i));
@@ -217,7 +206,7 @@ for t = t_span
     % segments, in the direction opposite gravity, divided evenly among
     % stance legs.
     
-    xyzContact = xyzFK(:,~swingLegs);
+    xyzContact = effectors(:,~swingLegs);
     bodyMass = (params.robotMass +sum(masses(1,:))/2);
     cmdFootForce = zeros(6,1);
     % the commanded foot force based on a best fit to the force distribution
@@ -230,10 +219,9 @@ for t = t_span
         end
     end
     
-    % find the expected joint velocities-- this may not work...
+    % find the expected joint velocities
     tEnd = toc;
     thDot = (th-thLast)/(tEnd - tStart);
-%     disp(tEnd - tStart)
     tStart = toc;
     
     
@@ -251,11 +239,12 @@ for t = t_span
         %  set(0, 'CurrentFigure', simFig)
         plt.plot(reshape(th,[1,18]));
         axes(simAx); % change current ax to the one in the sm plotter
-        scatter3(xyzFK(1,:), xyzFK(2,:), xyzFK(3,:), 'r');
+        scatter3(effectors(1,:), effectors(2,:), effectors(3,:), 'r');
         scatter3(xyz(1,:), xyz(2,:), xyz(3,:), [], swingLegs, 'filled');
-%         set(scatterCoM, 'xdata', legCoM(1,:), 'ydata',legCoM(2,:), 'zdata',legCoM(3,:));
+        set(scatterCoM, 'xdata', legCoM(1,:), 'ydata',legCoM(2,:), 'zdata',legCoM(3,:));
         set(supportLines, 'xdata', xOrdered(1,:), 'ydata',xOrdered(2,:), ...
             'zdata',ones(1,size(xOrdered,2))*mean(z0));
+        set(scatterCoM, 'xdata', legCoM(1,:), 'ydata',legCoM(2,:), 'zdata',legCoM(3,:));
         set(projectedCOM, 'xdata', legCoM(1,end), 'ydata',legCoM(2,end), 'zdata',mean(z0),...
             'markerFaceColor', [1 0 0]*~inSupport);
         set(scatterCentroid, 'xdata', xCentroid(1), 'ydata',xCentroid(2), 'zdata',mean(z0));
@@ -278,7 +267,7 @@ for t = t_span
     if sendCommands
         cmd.position = reshape(th,[1,18]);
         cmd.torque=reshape(legTorques, [1,18]);
-        cmd.velocity = thDot;
+        %       cmd.velocity = thDot;
         snakeMonster.set(cmd);
     end
     pause(0.01);

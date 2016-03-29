@@ -2,6 +2,8 @@
 % With simulation and sendCommands option.
 % Can plot torques
 % uses minJerk coefficients (although possibly incorrectly)
+% now with step direction setting
+
 
 simulation = 1; %0 to turn off simulation
 sendCommands = 0; % 1 to turn on commands to real robot
@@ -28,7 +30,10 @@ xyz(1,odd) = xyz(1,odd)-.1;
 xyz(1,even) = xyz(1,even)+.1;
 xyz(3,:) = xyz(3,:)+.05;
 
-
+stepDirection = pi; % the heading for the steps in terms of the body frame.
+  % 0 is straight ahead, pi/2 is walking right, etc.
+stepDirection = mod(stepDirection,2*pi);
+  
 % walking states: which legs are walking, swining, extra.
 swingLegs = zeros(1,6); % 1 indicates leg is in the air
 walkingLegs = [ 2 3 4 5 6]; % specify which legs will be used for walking
@@ -40,7 +45,10 @@ fractionStep = 1/nWalkingLegs;
 %    stepOrderBase = [1 2 3 4 6 5]; % works ok
 %    stepOrderBase = [1 4 3 6 2 5]; % works ok
 % stepOrderBase = [1 4 2 3 6  5]; % works ok
-stepOrderBase = [1 3 4 2 6  5]; % works best
+stepOrderBase = [1 3 4 2 6 5]; % works best
+if (stepDirection<-pi/2)||(stepDirection>pi/2)
+ stepOrderBase = fliplr(stepOrderBase); % flip the order if moving backwards
+end
 
 stepOrder = [];
 extraLegs = [];
@@ -64,17 +72,20 @@ end
 t = 0;
 a = params.L/3; % step length = 2*a
 b = .06; % step height = b
-z0 = ones(1,6)*-.15;
-y0 = [params.L/2 params.L/2 0 0 -params.L/2 -params.L/2];
+xyzStep0 = xyz; % the point at which the step is centered 
+xyzStep0(3,:) = ones(1,6)*-.15;
+xyzStep0(2,:) = xyz0(2,:);
 %  y0(odd)=y0(odd)+ [0 2*a 0];  y0(even) =  y0(even) +[3*a 0 -3*a]; % works ok
-y0(odd)=y0(odd)+ [0 2*a 0];  y0(even) =  y0(even) +[3*a 0 -3*a];
+xyzStep0(2,odd) = xyzStep0(2,odd) + [0 2*a 0];  
+xyzStep0(2,even)= xyzStep0(2,even) + [3*a 0 -3*a];
+
 
 stepPeriod = 2*pi*fractionStep;  % how long the stepping lasts
 % solve for coefficients to create trajectory with min jerk
 jerkCoeffs = minimumJerk( 0, 0, 0, ... % Starting Phase/Vel/Accel
     1, 0, 0, ... % Ending Phase/Vel/Accel
     stepPeriod);  % Time to touchdown
-stepWayPoints = [-a 0; 0 b; a 0];
+stepWayPoints = [0 -a 0; 0 0 b; 0 a 0]; % determine which points the feet pass through
 
 
 % get initial IK
@@ -83,8 +94,9 @@ t_leg = t+2*pi/nWalkingLegs*(nWalkingLegs:-1:1);
 for i = 1:nWalkingLegs
     leg = stepOrder(i);
     %         [xyz(2,leg),xyz(3,leg)] = ellipticalGait(a,b,y0(leg),z0(leg), fractionStep, t_leg(i));
-    [xyz(2,leg),xyz(3,leg)] =...
-        minJerkStepGait(stepWayPoints, jerkCoeffs, y0(leg), z0(leg),fractionStep, t_leg(i));
+%     [xyz(2,leg),xyz(3,leg)] =...
+%         minJerkStepGait(stepWayPoints, jerkCoeffs, y0(leg), z0(leg),fractionStep, t_leg(i));
+    xyz(:,leg) = minJerkStepGait2(stepWayPoints, jerkCoeffs, xyzStep0(:,leg), stepDirection, fractionStep, t_leg(i));
     
     if (mod(t_leg(i), 2*pi)<2*pi*fractionStep)&&(mod(t_leg(i), 2*pi)>0)
         swingLegs(leg) = 1;
@@ -164,12 +176,9 @@ torqueCmdRecord=[];
 xyzLast = xyz;
 xyzNext = xyz;
 
+
 for t = t_span
-    %  % find the jacobian
-    %  legKin{6}.getJacobian('EndEffector', th(:,i))
-    %  % find the gravity compensation torques
-    %    legKin{6}.getGravCompTorques(th(:,i),gravity)
-    
+       
     if sendCommands
         fbk = snakeMonster.getNextFeedback();
         thLast = fbk.position;
@@ -181,13 +190,14 @@ for t = t_span
     t_leg = t+2*pi/nWalkingLegs*(nWalkingLegs:-1:1);
     for i = 1:nWalkingLegs
         leg = stepOrder(i);
-        [xyz(2,leg),xyz(3,leg)] =...
-            minJerkStepGait(stepWayPoints, jerkCoeffs, y0(leg), z0(leg),fractionStep, t_leg(i));
-        [xyzNext(2,leg),xyzNext(3,leg)] =...
-            minJerkStepGait(stepWayPoints, jerkCoeffs, y0(leg), z0(leg),fractionStep, t_leg(i)+dt);
+%         [xyz(2,leg),xyz(3,leg)] =...
+%             minJerkStepGait(stepWayPoints, jerkCoeffs, y0(leg), z0(leg),fractionStep, t_leg(i));
+%         [xyzNext(2,leg),xyzNext(3,leg)] =...
+%             minJerkStepGait(stepWayPoints, jerkCoeffs, y0(leg), z0(leg),fractionStep, t_leg(i)+dt);
 %         [xyzLast(2,leg),xyzLast(3,leg)] =...
 %             minJerkStepGait(stepWayPoints, jerkCoeffs, y0(leg), z0(leg),fractionStep, t_leg(i)-dt);
-        
+         xyz(:,leg) = minJerkStepGait2(stepWayPoints, jerkCoeffs, xyzStep0(:,leg), stepDirection, fractionStep, t_leg(i));
+    
         if (mod(t_leg(i), 2*pi)<2*pi*fractionStep)
             swingLegs(leg) = 1;
         else

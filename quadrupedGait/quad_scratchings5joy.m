@@ -2,14 +2,22 @@
 % With simulation and sendCommands option.
 % Can plot torques
 % uses minJerk coefficients (although possibly incorrectly)
+% now with step direction setting via joystick
+
 
 simulation = 1; %0 to turn off simulation
-sendCommands = 0; % 1 to turn on commands to real robot
+sendCommands = 1; % 1 to turn on commands to real robot
 plotting =0; % makes some plots to show torques and such.
 logging = 0; % Writes a hebi log
 
 addpath(genpath('C:\Users\medgroup01\Documents\Julian\snakeMonster\KDC_Project'));
 % addpath(genpath('C:\Users\Julian\Box Sync\CMU sem 1+2\snakeMonster\KDC_project'));
+
+
+% Get Joystick Handle
+joy = vrjoystick(1);
+% dead zone indicates region of controller sticks that have noisy signal
+stickDeadZone = .08;
 
 th0 = zeros(3,6); % joint angles: each column is a leg (proximal to distal)
 params = SMPhysicalParameters();
@@ -28,7 +36,10 @@ xyz(1,odd) = xyz(1,odd)-.1;
 xyz(1,even) = xyz(1,even)+.1;
 xyz(3,:) = xyz(3,:)+.05;
 
-
+stepDirection = pi; % the heading for the steps in terms of the body frame.
+  % 0 is straight ahead, pi/2 is walking right, etc.
+stepDirection = mod(stepDirection,2*pi);
+  
 % walking states: which legs are walking, swining, extra.
 swingLegs = zeros(1,6); % 1 indicates leg is in the air
 walkingLegs = [ 2 3 4 5 6]; % specify which legs will be used for walking
@@ -40,7 +51,8 @@ fractionStep = 1/nWalkingLegs;
 %    stepOrderBase = [1 2 3 4 6 5]; % works ok
 %    stepOrderBase = [1 4 3 6 2 5]; % works ok
 % stepOrderBase = [1 4 2 3 6  5]; % works ok
-stepOrderBase = [1 3 4 2 6  5]; % works best
+stepOrderBase = [1 3 4 2 6 5]; % works best
+
 
 stepOrder = [];
 extraLegs = [];
@@ -62,19 +74,22 @@ for i = 1:(6-nWalkingLegs)
 end
 
 t = 0;
-a = params.L/3; % step length = 2*a
-b = .06; % step height = b
-z0 = ones(1,6)*-.15;
-y0 = [params.L/2 params.L/2 0 0 -params.L/2 -params.L/2];
+a_base = params.L/3; % step length = 2*a. L/3 works.
+b = .06; % step height = b. .06 works.
+xyzStep0 = xyz; % the point at which the step is centered 
+xyzStep0(3,:) = ones(1,6)*-.15;
+xyzStep0(2,:) = xyz0(2,:);
 %  y0(odd)=y0(odd)+ [0 2*a 0];  y0(even) =  y0(even) +[3*a 0 -3*a]; % works ok
-y0(odd)=y0(odd)+ [0 2*a 0];  y0(even) =  y0(even) +[3*a 0 -3*a];
+xyzStep0(2,odd) = xyzStep0(2,odd) + [0 2*a_base 0];  
+xyzStep0(2,even)= xyzStep0(2,even) + [3*a_base 0 -3*a_base];
+
 
 stepPeriod = 2*pi*fractionStep;  % how long the stepping lasts
 % solve for coefficients to create trajectory with min jerk
 jerkCoeffs = minimumJerk( 0, 0, 0, ... % Starting Phase/Vel/Accel
     1, 0, 0, ... % Ending Phase/Vel/Accel
     stepPeriod);  % Time to touchdown
-stepWayPoints = [-a 0; 0 b; a 0];
+stepWayPoints = [0 -a_base 0; 0 0 b; 0 a_base 0]; % determine which points the feet pass through
 
 
 % get initial IK
@@ -83,8 +98,9 @@ t_leg = t+2*pi/nWalkingLegs*(nWalkingLegs:-1:1);
 for i = 1:nWalkingLegs
     leg = stepOrder(i);
     %         [xyz(2,leg),xyz(3,leg)] = ellipticalGait(a,b,y0(leg),z0(leg), fractionStep, t_leg(i));
-    [xyz(2,leg),xyz(3,leg)] =...
-        minJerkStepGait(stepWayPoints, jerkCoeffs, y0(leg), z0(leg),fractionStep, t_leg(i));
+%     [xyz(2,leg),xyz(3,leg)] =...
+%         minJerkStepGait(stepWayPoints, jerkCoeffs, y0(leg), z0(leg),fractionStep, t_leg(i));
+    xyz(:,leg) = minJerkStepGait2(stepWayPoints, jerkCoeffs, xyzStep0(:,leg), stepDirection, fractionStep, t_leg(i));
     
     if (mod(t_leg(i), 2*pi)<2*pi*fractionStep)&&(mod(t_leg(i), 2*pi)>0)
         swingLegs(leg) = 1;
@@ -152,8 +168,8 @@ if sendCommands
 end
 
 
-nCycles = 2;
-nWaypoints = 25;
+nCycles = 20;
+nWaypoints = 50;
 t_span = linspace(0,2*pi*nCycles,nWaypoints*nCycles);
 dt = (2*pi*nCycles-0)/(nWaypoints*nCycles-1);
 tic;
@@ -164,12 +180,24 @@ torqueCmdRecord=[];
 xyzLast = xyz;
 xyzNext = xyz;
 
+
 for t = t_span
-    %  % find the jacobian
-    %  legKin{6}.getJacobian('EndEffector', th(:,i))
-    %  % find the gravity compensation torques
-    %    legKin{6}.getGravCompTorques(th(:,i),gravity)
     
+     % read input from joy stick
+    [swivel, buttons, povs] = read( joy );
+    modifiedStickVal = swivel;
+    modifiedStickVal(abs(modifiedStickVal)<stickDeadZone) = 0;  % set values in deadzone to 0
+    modifiedStickVal = sign(modifiedStickVal) .* modifiedStickVal.^2; % squares stick signal for enhanced control
+    % axes(1) is the forwards/back (-1 -> 1)
+    % axes(2) is the left/right (-1 -> 1)
+    stepDirection = -atan2(modifiedStickVal(1), -modifiedStickVal(2));
+    a = a_base * sqrt(sum(modifiedStickVal(1:2).^2)/2);
+    stepWayPoints = [0 -a 0; 0 0 b; 0 a 0]; % determine which points the feet pass through
+    stepOrderMod = stepOrder;
+    if (stepDirection<-pi/2)||(stepDirection>pi/2)
+      stepOrderMod = fliplr(stepOrder); % flip the order if moving backwards
+    end
+
     if sendCommands
         fbk = snakeMonster.getNextFeedback();
         thLast = fbk.position;
@@ -181,13 +209,14 @@ for t = t_span
     t_leg = t+2*pi/nWalkingLegs*(nWalkingLegs:-1:1);
     for i = 1:nWalkingLegs
         leg = stepOrder(i);
-        [xyz(2,leg),xyz(3,leg)] =...
-            minJerkStepGait(stepWayPoints, jerkCoeffs, y0(leg), z0(leg),fractionStep, t_leg(i));
-        [xyzNext(2,leg),xyzNext(3,leg)] =...
-            minJerkStepGait(stepWayPoints, jerkCoeffs, y0(leg), z0(leg),fractionStep, t_leg(i)+dt);
+%         [xyz(2,leg),xyz(3,leg)] =...
+%             minJerkStepGait(stepWayPoints, jerkCoeffs, y0(leg), z0(leg),fractionStep, t_leg(i));
+%         [xyzNext(2,leg),xyzNext(3,leg)] =...
+%             minJerkStepGait(stepWayPoints, jerkCoeffs, y0(leg), z0(leg),fractionStep, t_leg(i)+dt);
 %         [xyzLast(2,leg),xyzLast(3,leg)] =...
 %             minJerkStepGait(stepWayPoints, jerkCoeffs, y0(leg), z0(leg),fractionStep, t_leg(i)-dt);
-        
+         xyz(:,leg) = minJerkStepGait2(stepWayPoints, jerkCoeffs, xyzStep0(:,leg), stepDirection, fractionStep, t_leg(i));
+    
         if (mod(t_leg(i), 2*pi)<2*pi*fractionStep)
             swingLegs(leg) = 1;
         else
@@ -251,14 +280,14 @@ for t = t_span
         %  set(0, 'CurrentFigure', simFig)
         plt.plot(reshape(th,[1,18]));
         axes(simAx); % change current ax to the one in the sm plotter
-        scatter3(xyzFK(1,:), xyzFK(2,:), xyzFK(3,:), 'r');
-        scatter3(xyz(1,:), xyz(2,:), xyz(3,:), [], swingLegs, 'filled');
+%         scatter3(xyzFK(1,:), xyzFK(2,:), xyzFK(3,:), 'r');
+%         scatter3(xyz(1,:), xyz(2,:), xyz(3,:), [], swingLegs, 'filled');
 %         set(scatterCoM, 'xdata', legCoM(1,:), 'ydata',legCoM(2,:), 'zdata',legCoM(3,:));
         set(supportLines, 'xdata', xOrdered(1,:), 'ydata',xOrdered(2,:), ...
-            'zdata',ones(1,size(xOrdered,2))*mean(z0));
-        set(projectedCOM, 'xdata', legCoM(1,end), 'ydata',legCoM(2,end), 'zdata',mean(z0),...
+            'zdata',ones(1,size(xOrdered,2))*mean(xyzStep0(3,:)));
+        set(projectedCOM, 'xdata', legCoM(1,end), 'ydata',legCoM(2,end), 'zdata',mean(xyzStep0(3,:)),...
             'markerFaceColor', [1 0 0]*~inSupport);
-        set(scatterCentroid, 'xdata', xCentroid(1), 'ydata',xCentroid(2), 'zdata',mean(z0));
+        set(scatterCentroid, 'xdata', xCentroid(1), 'ydata',xCentroid(2), 'zdata',mean(xyzStep0(3,:)));
         % view([0 0 -1]);
     end
     
@@ -280,9 +309,10 @@ for t = t_span
         cmd.torque=reshape(legTorques, [1,18]);
         cmd.velocity = thDot;
         snakeMonster.set(cmd);
-    end
+    else
     pause(0.01);
-end
+    end
+    end
 
 if sendCommands
     if logging
