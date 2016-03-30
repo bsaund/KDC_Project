@@ -1,0 +1,7 @@
+step optimization scratchpad
+
+start with stance optimization
+check what would happen to the support polygon if each leg was lifted
+Pick the one that destabilize the com the least if removed
+move the leg in the direction that I want to walk,
+
