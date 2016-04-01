@@ -1,8 +1,10 @@
 % quadruped gait testing with HebiKinematics
 % With simulation and sendCommands option.
+% Can plot torques
+% uses minJerk coefficients (although possibly incorrectly)
 
 simulation = 1; %0 to turn off simulation
-sendCommands = 1; % 1 to turn on commands to real robot
+sendCommands = 0; % 1 to turn on commands to real robot
 plotting =0;
 
 addpath(genpath('C:\Users\medgroup01\Documents\Julian\snakeMonster\KDC_Project'));
@@ -14,7 +16,6 @@ SMData = makeSMData(params);
 inch2m = 0.0254;
 gravity = [0 0 -9.81];
 odd = [1,3,5]; even= [2 4 6];
-x =1; y =2; z = 3;
 
 kin = SnakeMonsterKinematics; % does all the kinamatics
 
@@ -22,21 +23,11 @@ xyz0 = kin.getLegPositions(th0);
 xyz = xyz0;
 
 % move all feet in towards chassis
-xyz(1,odd) = xyz(1,odd)-.12;
-xyz(1,even) = xyz(1,even)+.12;
+xyz(1,odd) = xyz(1,odd)-.1;
+xyz(1,even) = xyz(1,even)+.1;
 xyz(3,:) = xyz(3,:)+.05;
 
-        
-t = 0;
-a = params.L/3; % step length = 2*a
- b = .075; % step height = b
- z0 = ones(1,6)*-.2;
- y0 = [params.L/2 params.L/2 0 0 -params.L/2 -params.L/2];
-%  y0(odd)=y0(odd)+ [0 2*a 0];  y0(even) =  y0(even) +[3*a 0 -3*a]; % works ok
- y0(odd)=y0(odd)+ [0 2*a 0];  y0(even) =  y0(even) +[3*a 0 -3*a];
 
- 
- 
  % walking states: which legs are walking, swining, extra.
    swingLegs = zeros(1,6); % 1 indicates leg is in the air 
  walkingLegs = [ 2 3 4 5 6]; % specify which legs will be used for walking
@@ -46,9 +37,9 @@ a = params.L/3; % step length = 2*a
 %  stepOrderBase = [6 4 2 5 3 1]; % back to front
 %   stepOrderBase = [1 3 5 2 4 6]; % fornt to back
 %    stepOrderBase = [1 2 3 4 6 5]; % works ok
-%    stepOrderBase = [1 4 3 6 2 5]; % works better
-% stepOrderBase = [1 4 2 3 6  5]; % works well
-stepOrderBase = [1 3 4 2 6  5]; 
+%    stepOrderBase = [1 4 3 6 2 5]; % works ok
+% stepOrderBase = [1 4 2 3 6  5]; % works ok
+stepOrderBase = [1 3 4 2 6  5]; % works best
 
  stepOrder = [];
  extraLegs = [];
@@ -68,14 +59,32 @@ stepOrderBase = [1 3 4 2 6  5];
      xyz(2,extraLegs(i)) =.5*sign(xyz0(2,extraLegs(i)));
      xyz(1,extraLegs(i)) =.1*sign(xyz0(1,extraLegs(i)));
  end
-
  
+t = 0;
+a = params.L/3; % step length = 2*a
+ b = .06; % step height = b
+ z0 = ones(1,6)*-.1;
+ y0 = [params.L/2 params.L/2 0 0 -params.L/2 -params.L/2];
+%  y0(odd)=y0(odd)+ [0 2*a 0];  y0(even) =  y0(even) +[3*a 0 -3*a]; % works ok
+ y0(odd)=y0(odd)+ [0 2*a 0];  y0(even) =  y0(even) +[3*a 0 -3*a];
+ 
+stepPeriod = 2*pi*fractionStep;  % how long the stepping lasts
+ % solve for coefficients to create trajectory with min jerk
+jerkCoeffs = minimumJerk( 0, 0, 0, ... % Starting Phase/Vel/Accel
+                          1, 0, 0, ... % Ending Phase/Vel/Accel
+                          stepPeriod);  % Time to touchdown
+stepWayPoints = [-a 0; 0 b; a 0];
+
+                      
   % get initial IK
    t_leg = t+2*pi/nWalkingLegs*(nWalkingLegs:-1:1);
     % find the point on the eliptical path
     for i = 1:nWalkingLegs
         leg = stepOrder(i);
-        [xyz(2,leg),xyz(3,leg)] = ellipticalGait(a,b,y0(leg),z0(leg), fractionStep, t_leg(i));
+%         [xyz(2,leg),xyz(3,leg)] = ellipticalGait(a,b,y0(leg),z0(leg), fractionStep, t_leg(i));
+        [xyz(2,leg),xyz(3,leg)] =...
+            minJerkStepGait(stepWayPoints, jerkCoeffs, y0(leg), z0(leg),fractionStep, t_leg(i));
+
         if (mod(t_leg(i), 2*pi)<2*pi*fractionStep)&&(mod(t_leg(i), 2*pi)>0)
             swingLegs(leg) = 1;
         else
@@ -136,11 +145,13 @@ if sendCommands
       snakeMonster.set(cmd);
 disp('press any key to start')
       pause;
+      snakeMonster.startLog();
+
  end
 
   
   nCycles = 2;
-t_span = linspace(0,2*pi*nCycles,50*nCycles);
+t_span = linspace(0,2*pi*nCycles,20*nCycles);
 tic;
 tStart = 0;
 tRecord=[];
@@ -164,7 +175,9 @@ end
     % find the point on the eliptical path
     for i = 1:nWalkingLegs
         leg = stepOrder(i);
-        [xyz(2,leg),xyz(3,leg)] = ellipticalGait(a,b,y0(leg),z0(leg), fractionStep, t_leg(i));
+%         [xyz(2,leg),xyz(3,leg)] = ellipticalGait(a,b,y0(leg),z0(leg), fractionStep, t_leg(i));  
+        [xyz(2,leg),xyz(3,leg)] =...
+            minJerkStepGait(stepWayPoints, jerkCoeffs, y0(leg), z0(leg),fractionStep, t_leg(i));
         if (mod(t_leg(i), 2*pi)<2*pi*fractionStep)&&(mod(t_leg(i), 2*pi)>0)
             swingLegs(leg) = 1;
         else
@@ -249,10 +262,11 @@ axes(simAx); % change current ax to the one in the sm plotter
 %       cmd.velocity = thDot;
       snakeMonster.set(cmd);
   end
-%  pause(0.01);
+ pause(0.05);
  end
 
  if sendCommands
+     snakeMonster.stopLog();
      pause(3)
  % go limp
  cmd.position = nan(1,18);

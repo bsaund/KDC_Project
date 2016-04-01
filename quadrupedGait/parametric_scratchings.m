@@ -1,4 +1,5 @@
-% parametric test
+% parametric testing
+% playing with the parameters in the elliptical gait
 
 % making an open loop step pattern
 a = .05; % step length = 2*a
@@ -10,7 +11,7 @@ figure;
 plot(0,0); hold on;
 xlim([-a a]*1.5);
 ylim([-b b ]*1.5);
-fractionStep = 1/2;
+fractionStep = 1/5;
 
 for t = 0:.1:2*pi
 
