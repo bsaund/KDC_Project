@@ -70,7 +70,7 @@ classdef SnakeMonsterKinematics < handle
             kin.addBody('FieldableElbowJoint');
             kin.addBody('FieldableElbowLink', ...
                         'ext1', 0.0463 - 0.0360, 'twist1', -pi/2, ...
-                        'ext2', 0.1849 - 0.0336, 'twist2', pi)
+                        'ext2', 0.1849 - 0.0336, 'twist2', pi);
             
             
         end
@@ -91,7 +91,7 @@ classdef SnakeMonsterKinematics < handle
             positions = squeeze(fk(1:3, 4, :));
         end
         
-      function CoMs = getCenterOfMasses(this, angles)
+        function CoMs = getCenterOfMasses(this, angles)
         %Gets the xyz positions of the COM of each joint in each leg in the body frame
         %angles is a 18 element vector of joint angles
         %positions is a 3x6 matrix
@@ -104,9 +104,9 @@ classdef SnakeMonsterKinematics < handle
             CoMs(:,:,5) = getXYZ(this.rbLeg.getFK('CoM', angles(13:15)));           
             CoMs(:,:,6) = getXYZ(this.lbLeg.getFK('CoM', angles(16:18)));
             
-      end
+        end
         
-      function masses = getLegMasses(this)
+        function masses = getLegMasses(this)
           %Returns the masses of all of the segments in the legs
           masses = zeros(5,6);
           masses(:,1) = this.rfLeg.getBodyMasses();
@@ -116,9 +116,50 @@ classdef SnakeMonsterKinematics < handle
           masses(:,5) = this.rbLeg.getBodyMasses();
           masses(:,6) = this.lbLeg.getBodyMasses();
           
-      end
+        end
       
-      function J = getLegJacobians(this, angles)
+        function SnakeMonsterCoM = getSnakeMonsterCoM(this,angles)
+          %Gets the xyz positions of the COM of the entire Snake Monster in
+          %the body frame
+          
+          bodyMasses = getLegMasses(this);
+          bodyCoMs = getCenterOfMasses(this,angles);
+          
+          legDim = size(bodyMasses,2);
+          bodyDim = size(bodyMasses,1);
+          
+          %Preallocating memory
+          scaledCoMs = zeros(3,bodyDim,legDim);
+          sumScaledLegCoMs = zeros(3,legDim);
+          legMasses = zeros(legDim,1);
+          legCoMs = zeros(3,legDim);
+          scaledLegCoMs = zeros(3,legDim);
+          
+          %Loop that 
+          for i=1:legDim
+              for k=1:bodyDim
+                  scaledCoMs(:,k,i) = bodyMasses(k,i)*bodyCoMs(:,k,i);
+              end
+              sumScaledLegCoMs(:,i) = sum(scaledCoMs(:,:,i),2);
+              legMasses(i) = sum(bodyMasses(:,i));
+              legCoMs(:,i) = sumScaledLegCoMs(:,i)/legMasses(i);
+              
+              scaledLegCoMs(:,i) = legMasses(i)*legCoMs(:,i);
+          end
+          
+          sumScaledLegsCoM = sum(scaledLegCoMs,2);
+          legsMass = sum(legMasses);
+          
+          legsCoM = sumScaledLegsCoM/legsMass;
+          
+          bodyMass = 2.37;  %Mass of Snake Monster body only [kg]
+          bodyCoM = [0.0035;-0.0086;0]; %CoM of Snake Monster body only
+          
+          totalMass = legsMass + bodyMass;
+          SnakeMonsterCoM = (legsMass*legsCoM+bodyMass*bodyCoM)/totalMass;
+        end
+      
+        function J = getLegJacobians(this, angles)
         %Gets the jacobian (world frame) of all the legs 
         %angles is a 18 element vector of joint angles
         
@@ -130,8 +171,9 @@ classdef SnakeMonsterKinematics < handle
             J(:,:,5) = (this.rbLeg.getJacobian('EndEffector', angles(13:15)));           
             J(:,:,6) = (this.lbLeg.getJacobian('EndEffector', angles(16:18)));
             
-      end
-     function gravCompTorques = getLegGravCompTorques(this, angles, gravity)
+        end
+        
+        function gravCompTorques = getLegGravCompTorques(this, angles, gravity)
         %Gets the gravity compensation torques for the legs
         %angles is a 18 element vector of joint angles
         % gravity is a 1x3 vector which says which way gravity is pointing.
@@ -159,8 +201,6 @@ classdef SnakeMonsterKinematics < handle
         end
     end
     
-
-    
     methods(Access = private, Hidden = true)
         function m = trans(this, xyzrpy)
             m = eye(4);
@@ -168,6 +208,7 @@ classdef SnakeMonsterKinematics < handle
             m = m*this.rotz(xyzrpy(6)) *this.roty(xyzrpy(5))*...
                 this.rotx(xyzrpy(4));
         end
+        
         function m = roty(this, theta)
         %Homogeneous transform matrix for a rotation about y
             m = [cos(theta),  0, sin(theta), 0;
@@ -192,13 +233,21 @@ classdef SnakeMonsterKinematics < handle
                  0,           0, 0,          1];
         end
         
-         function xyz = getXYZ(this, g)
+        function xyz = getXYZ(this, g)
         %returns the elements for the xyz of the homogeneous tranform g in
         %a 3 by N (where N = size(g,3)) matrix
            xyz = reshape(g(1:3,4,:), [3, size(g,3)]);
         end
         
         
+    end
+    
+    methods(Static,Access = private, Hidden = true)
+        function [bodyMass,bodyCoM] = getBodyMass()
+          %Returns the mass of the body only
+          bodyMass = 2.37; % Mass of the body only [kg]
+          bodyCoM = [0.0035;-0.0086;0]; % CoM of Snake Monster body only
+        end
     end
     
     properties(Access = private, Hidden = true)
