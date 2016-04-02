@@ -97,12 +97,12 @@ classdef SnakeMonsterKinematics < handle
         %positions is a 3x6 matrix
         
             CoMs = zeros(3,5,6);
-            CoMs(:,:,1) = getXYZ(this.rfLeg.getFK('CoM', angles(1:3)));
-            CoMs(:,:,2) = getXYZ(this.lfLeg.getFK('CoM', angles(4:6)));
-            CoMs(:,:,3) = getXYZ(this.rmLeg.getFK('CoM', angles(7:9)));
-            CoMs(:,:,4) = getXYZ(this.lmLeg.getFK('CoM', angles(10:12)));
-            CoMs(:,:,5) = getXYZ(this.rbLeg.getFK('CoM', angles(13:15)));           
-            CoMs(:,:,6) = getXYZ(this.lbLeg.getFK('CoM', angles(16:18)));
+            CoMs(:,:,1) = this.getXYZ(this.rfLeg.getFK('CoM', angles(1:3)));
+            CoMs(:,:,2) = this.getXYZ(this.lfLeg.getFK('CoM', angles(4:6)));
+            CoMs(:,:,3) = this.getXYZ(this.rmLeg.getFK('CoM', angles(7:9)));
+            CoMs(:,:,4) = this.getXYZ(this.lmLeg.getFK('CoM', angles(10:12)));
+            CoMs(:,:,5) = this.getXYZ(this.rbLeg.getFK('CoM', angles(13:15)));           
+            CoMs(:,:,6) = this.getXYZ(this.lbLeg.getFK('CoM', angles(16:18)));
             
         end
         
@@ -117,48 +117,46 @@ classdef SnakeMonsterKinematics < handle
           masses(:,6) = this.lbLeg.getBodyMasses();
           
         end
-      
+        
         function SnakeMonsterCoM = getSnakeMonsterCoM(this,angles)
-          %Gets the xyz positions of the COM of the entire Snake Monster in
-          %the body frame
+            %Gets the xyz positions of the COM of the entire Snake Monster in
+            %its body frame
+
+            %Pulling the masses and CoMs of the individual leg components
+            %(aka bodies)
+            bodyMasses = getLegMasses(this);
+            bodyCoMs = getCenterOfMasses(this,angles);
+
+            legDim = size(bodyMasses,2);
+
+            %Preallocating memory
+            scaledCoMs = zeros(3,legDim);
+
+            %Calculating the Center of Mass of the legs
+            for i=1:legDim
+              scaledCoMs(:,i) = bodyCoMs(:,:,i)*bodyMasses(:,i);
+            end
+            legMasses = sum(bodyMasses,1);
+            legCoMs = scaledCoMs./repmat(legMasses,[3,1]);
+
+            scaledLegsCoM = sum(legCoMs*legMasses',2);
+
+            legsMass = sum(legMasses);
+
+            %Changed notation from bodyMass to baseMass to remove
+            %confusion regarding individual components and the base
+            baseMass = 2.37;  %Mass of Snake Monster base only [kg]
+            baseCoM = [0;0;0]; %CoM of Snake Monster base only
+
+            %Calculating entire SnakeMonsterCoM
+            totalMass = legsMass + baseMass;
+            SnakeMonsterCoM = (scaledLegsCoM+baseMass*baseCoM)/totalMass;
           
-          bodyMasses = getLegMasses(this);
-          bodyCoMs = getCenterOfMasses(this,angles);
-          
-          legDim = size(bodyMasses,2);
-          bodyDim = size(bodyMasses,1);
-          
-          %Preallocating memory
-          scaledCoMs = zeros(3,bodyDim,legDim);
-          sumScaledLegCoMs = zeros(3,legDim);
-          legMasses = zeros(legDim,1);
-          legCoMs = zeros(3,legDim);
-          scaledLegCoMs = zeros(3,legDim);
-          
-          %Loop that 
-          for i=1:legDim
-              for k=1:bodyDim
-                  scaledCoMs(:,k,i) = bodyMasses(k,i)*bodyCoMs(:,k,i);
-              end
-              sumScaledLegCoMs(:,i) = sum(scaledCoMs(:,:,i),2);
-              legMasses(i) = sum(bodyMasses(:,i));
-              legCoMs(:,i) = sumScaledLegCoMs(:,i)/legMasses(i);
-              
-              scaledLegCoMs(:,i) = legMasses(i)*legCoMs(:,i);
-          end
-          
-          sumScaledLegsCoM = sum(scaledLegCoMs,2);
-          legsMass = sum(legMasses);
-          
-          legsCoM = sumScaledLegsCoM/legsMass;
-          
-          bodyMass = 2.37;  %Mass of Snake Monster body only [kg]
-          bodyCoM = [0.0035;-0.0086;0]; %CoM of Snake Monster body only
-          
-          totalMass = legsMass + bodyMass;
-          SnakeMonsterCoM = (legsMass*legsCoM+bodyMass*bodyCoM)/totalMass;
         end
       
+        
+       
+   
         function J = getLegJacobians(this, angles)
         %Gets the jacobian (world frame) of all the legs 
         %angles is a 18 element vector of joint angles
@@ -243,10 +241,11 @@ classdef SnakeMonsterKinematics < handle
     end
     
     methods(Static,Access = private, Hidden = true)
-        function [bodyMass,bodyCoM] = getBodyMass()
-          %Returns the mass of the body only
-          bodyMass = 2.37; % Mass of the body only [kg]
-          bodyCoM = [0.0035;-0.0086;0]; % CoM of Snake Monster body only
+        function [baseMass,baseCoM] = getBaseMass()
+          %Returns the mass of the body only (CoM pretty insignificant
+          baseMass = 2.37; % Mass of the body only [kg]
+          baseCoM = [0;0;0]; % CoM of Snake Monster is essentially at
+                             % the body frame origin
         end
     end
     
