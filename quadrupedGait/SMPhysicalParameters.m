@@ -7,7 +7,8 @@ function params = SMPhysicalParameters()
 params.legMasses = [.205 .205 .09 .205 .20 .20];
 % mass kg of [hip module, hip 2 module,femur, knee module,tibia(shin),foot]
 % Chassis Weight
-params.robotMass = 8;  % kg
+% params.robotMass = 8;  % kg
+params.robotMass = 2.37; % Mass of the body only [kg]
 params.payloadMass = 0.0;  % kg
 
 

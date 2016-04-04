@@ -8,8 +8,8 @@ addpath(genpath('C:\Users\medgroup01\Documents\Julian\snakeMonster\KDC_Project')
 global kin thExtra nLegs stanceLegs extraLegs masses params zd
 
 % stuff to set by hand:
-stanceLegs = [  3 4 5 6]; % array of legs that are in the air, stretched out far
-zd = .1; % the minimum body height
+stanceLegs = [  2 3 4 5 6]; % array of legs that are in the air, stretched out far
+zd = .15; % the minimum body height
 
 % sorting and making leg arrays
 stanceLegs =sort(stanceLegs); % in case they werent in order
@@ -57,8 +57,10 @@ Beq = [];
 options = optimset('TolCon', 1e-3, 'TolFun', 1e-3);% for speed
 
 
- %% the big optimization
+%  % the big optimization
  thOpt = fmincon(@cost3,th0,A,B,Aeq,Beq,LB,UB,@nonlincon1,options);
+%  thOpt = fmincon(@stanceAndStepCost1,th0,A,B,Aeq,Beq,LB,UB,@nonlincon1,options);
+ 
  
  %% plot the results
 thMat = reshape(thOpt, [3,nStanceLegs]);
