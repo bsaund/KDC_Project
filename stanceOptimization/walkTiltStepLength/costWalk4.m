@@ -1,11 +1,12 @@
-function f = costWalk3(state)
+function f = costWalk4(state)
 
 global kin xyzExtra stanceLegs extraLegs  plt A 
-global stepDirection phasesToTest swingAtPhasesToTest stepOrder stepLength
+global stepDirection phasesToTest swingAtPhasesToTest stepOrder 
 nStanceLegs = length(stanceLegs);
 
-xyStep = state(1:end-3);
-planexyc = state(end-2:end);
+xyStep = state(1:end-4);
+planexyc = state(end-3:end-1);
+stepLength = state(end);
 
 xyz = zeros(3,6);
 xyz(:,extraLegs) =xyzExtra;
@@ -93,46 +94,46 @@ for k = 1:nPhases
 % IP = x' * x;
 % d = sqrt(bsxfun(@plus, diag(IP), diag(IP)') - 2 * IP);
  % even side:
-%  CoMsInterest = CoMs(:,2:end-1,[2 4 6]);
- CoMsInterest = CoMs(:,:,[2 4 6]);
+ CoMsInterest = CoMs(:,2:end-1,[2 4 6]); % I only care about collisions near center of leg
  sizeCoMs = size(CoMsInterest);
-x = reshape(permute(CoMsInterest, [3, 2, 1]), [sizeCoMs(2)*sizeCoMs(3),sizeCoMs(1)]).'; % x;y;z for all points
+x = reshape(permute(CoMsInterest, [1, 3, 2]), [sizeCoMs(1)*sizeCoMs(3),sizeCoMs(2)]).'; % x;y;z for all points
 IP = x' * x;
-dEven = sqrt(bsxfun(@plus, diag(IP), diag(IP)') - 2 * IP); % matrix with distance from point i to point j
+d = sqrt(bsxfun(@plus, diag(IP), diag(IP)') - 2 * IP); % matrix with distance from point i to point j
 % includes the distance to i to i.
-pointDistCost = 1000*sigmf(-dEven+.04,[100 0]);
+pointDistCost = sigmf(-d+.03,[50 0]);
 pointDistCost(1:sizeCoMs(3)*sizeCoMs(2)+1:end) = 0; % don't penalize the link being itself!
 costPhases(k) =  costPhases(k) ...
-    + sum(sum(pointDistCost));
+    + sum(sum(pointDistCost))*1000;
 % odd side:
-%  CoMsInterest = CoMs(:,2:end-1,[1 3 5]); % I only care about collisions near center of leg
- CoMsInterest = CoMs(:,:,[1 3 5]); % 
+ CoMsInterest = CoMs(:,2:end-1,[1 3 5]); % I only care about collisions near center of leg
  sizeCoMs = size(CoMsInterest);
-x = reshape(permute(CoMsInterest, [3, 2, 1]), [sizeCoMs(2)*sizeCoMs(3),sizeCoMs(1)]).'; % x;y;z for all points
+x = reshape(permute(CoMsInterest, [1, 3, 2]), [sizeCoMs(1)*sizeCoMs(3),sizeCoMs(2)]).'; % x;y;z for all points
 IP = x' * x;
-dOdd = sqrt(bsxfun(@plus, diag(IP), diag(IP)') - 2 * IP); % matrix with distance from point i to point j
+d = sqrt(bsxfun(@plus, diag(IP), diag(IP)') - 2 * IP); % matrix with distance from point i to point j
 % includes the distance to i to i.
-pointDistCost = 1000*sigmf(-dOdd+.04,[100 0]);
+pointDistCost = sigmf(-d+.03,[50 0]);
 pointDistCost(1:sizeCoMs(3)*sizeCoMs(2)+1:end) = 0; % don't penalize the link being itself!
 costPhases(k) =  costPhases(k) ...
-    + sum(sum(pointDistCost));
+    + sum(sum(pointDistCost))*1000;
 
 
     
 % penalize having a foot in front of another during the gait
 xyStepT = reshape(xyz(1:2,stanceLegs), [1,2*nStanceLegs]);
-footOverlap= A*[xyStepT 0 0 0].';
+footOverlap= A*[xyStepT 0 0 0 0].';
 costPhases(k) =  costPhases(k) ...
     + sum(exp((footOverlap+.01)*100));
 
-% plt.plot(thIK);
-
-end
-% plt.plot(thIK);
-f = sum(costPhases);
    
-%  
  
+end
+
+f = sum(costPhases);
+
+% reward large step size?
+f = f - 10000*(state(end)-.05); 
+
+%  plt.plot(thIK);
 
 %{
 % penalize the feet being close together
@@ -143,14 +144,15 @@ f = f - sum(sum(d));
 %}
 
 
-
-%     % % encourage the points to be far away
-% delta_xyz = repmat(projBodyCoM, [1,nStanceLegs]) - xyz(:,stanceLegs);
-% wX= 100; wY = 100; wZ = 100;
-%  f =  f ...
-%     - delta_xyz(1,:)*wX*delta_xyz(1,:).' ...
-%     - delta_xyz(2,:)*wY*delta_xyz(2,:).'...
-%     - delta_xyz(3,:)*wZ*delta_xyz(3,:).';
+%{
+    % % encourage the points to be far away
+delta_xyz = repmat(projBodyCoM, [1,nStanceLegs]) - xyz(:,stanceLegs);
+wX= .1; wY = .1; wZ = 0.1;
+ f =  f ...
+    - delta_xyz(1,:)*wX*delta_xyz(1,:).' ...
+    - delta_xyz(2,:)*wY*delta_xyz(2,:).'...
+    - delta_xyz(3,:)*wZ*delta_xyz(3,:).';
+%}
 
 
 

@@ -261,7 +261,7 @@ for t = t_span
     bodyMass = (params.robotMass +sum(masses(1,:))/2);
     cmdFootForce = zeros(6,1);
     % the commanded foot force based on a best fit to the force distribution
-    cmdFootForce(~swingLegs) = pinv(xyzContact) * [0; 0; bodyMass];
+    cmdFootForce(~swingLegs) = pinv(xyzContact) * -gravity*bodyMass;
     
     for i=1:6
         footWrench = [0;0;cmdFootForce(i); zeros(3,1)];

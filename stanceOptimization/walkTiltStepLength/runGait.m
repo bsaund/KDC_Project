@@ -1,7 +1,7 @@
 % runGait
 % takes the parameters from the gait optimization and plays them out.
 
-makeVideo = 0; % video recording flag
+makeVideo = 1; % video recording flag
 
 nCycles = 2;
 nWaypoints = 100;
@@ -35,7 +35,7 @@ xyz(3,stanceLegs) = ...
 xyzStance0 = xyz; % save original configuration for modification
 
  if makeVideo
-     v = VideoWriter(['gaitVid5.avi']);
+     v = VideoWriter(['gaitVid2.avi']);
       open(v);
   end
 
@@ -85,7 +85,7 @@ xyzFK = kin.getLegPositions(thIK);
   inSupport = inpolygon(projBodyCoMRot(1),projBodyCoMRot(2),xOrderedRot(1,:),xOrderedRot(2,:));
   set(projectedCOM, 'xdata', projBodyCoM(1), 'ydata',projBodyCoM(2), 'zdata', projBodyCoM(3),...
      'markerFaceColor', [1 0 0]*~inSupport);
-%   set(scatterCentroid, 'xdata', xCentroid(1), 'ydata',xCentroid(2), 'zdata',xCentroid(3));
+  set(scatterCentroid, 'xdata', xCentroid(1), 'ydata',xCentroid(2), 'zdata',xCentroid(3));
 %                 scatter3(xyzFK(1,:), xyzFK(2,:), xyzFK(3,:), 'r');
 %                 scatter3(xyz(1,:), xyz(2,:), xyz(3,:), [], swingLegs, 'filled');
   

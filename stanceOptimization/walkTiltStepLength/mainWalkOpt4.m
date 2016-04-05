@@ -5,6 +5,7 @@
 % which maximize stability for a few time points in the gait cycle
 % where stability is COM farthest from the edges of the polygon subject to joint limits 
 
+% now with step size as a optimized variable
 
 close all; clc;
 addpath(genpath('C:\Users\medgroup01\Documents\Julian\snakeMonster\KDC_Project'));
@@ -13,9 +14,9 @@ addpath(genpath('C:\Users\medgroup01\Documents\Julian\snakeMonster\KDC_Project')
 
 global kin params plt A
 global xyzExtra nLegs stanceLegs extraLegs stepOrder  stanceLegBaseXY
-global stepDirection stepLength phasesToTest swingAtPhasesToTest
+global stepDirection phasesToTest swingAtPhasesToTest
 % stuff to set by hand:
-stanceLegs = [2 3 4 5 6]; % array of legs that are in the air, stretched out far
+stanceLegs = [ 2 3 4 5 6]; % array of legs that are in the air, stretched out far
 
 
 %% sorting and making leg arrays
@@ -26,7 +27,7 @@ nStanceLegs = length(stanceLegs);
 stepDirection = 0; % the heading for the steps in terms of the body frame.
 % 0 is straight ahead, pi/2 is walking right, etc.
 stepDirection = mod(stepDirection,2*pi);
-stepLength = .1; % might later be an optimized parameter
+stepLength0 = .1; % an optimized parameter
 
 % walking states: which legs are walking, swinging, extra.
 fractionStep = 1/nStanceLegs;
@@ -97,10 +98,6 @@ xyz = xyz0;
  end
  xyzExtra = xyz(:,extraLegs);
 
- % xyz for back legs move back a little
- xyz0(2,[5 6]) = xyz0(2,[5 6])-.05;
- xyz0(2,[3 4]) = xyz0(2,[3 4])+.05;
- 
  %% optimization state and constraints setup
 % xyzStep0 is the 3xnStepLegs positions of the stepping feet at t=0 in
 % the gait cycle
@@ -112,9 +109,9 @@ xyStep0 = reshape(xyz0(1:2,stanceLegs), [1, 2*nStanceLegs]); % initial value: al
 % fitting a plane in stead of a z0... planex*x + planey*y + z + planec = 0
 % this is a plane 
 planex = 0;
-planey = .2;
+planey = .4;
 planec = .2;
-state0 = [xyStep0 planex planey planec];
+state0 = [xyStep0 planex planey planec stepLength0];
 
 % % get the starting position from the stance optimizer:
 % mainWalkOpt2;
@@ -129,16 +126,14 @@ stanceLegBaseXY = legBaseXY(:, stanceLegs);
 oddInds =find(mod(stanceLegs,2)==1); % the indexes of the odd legs in stanceLegs
 evenInds= find(mod(stanceLegs,2)==0);
 UBMat = Inf(2,nStanceLegs); LBMat = -UBMat;
-UBMat(1,evenInds) = stanceLegBaseXY(1,evenInds) - (params.l(1) + params.l(1)); % not below body
-LBMat(1,oddInds) = stanceLegBaseXY(1,oddInds) +  (params.l(1) + params.l(1));  % not below body
-UBMat(1,oddInds) = .35; % not too far out 
-LBMat(1,evenInds) = -.35; % not too far out 
+UBMat(1,evenInds) = stanceLegBaseXY(1,evenInds) - (params.l(1) + params.l(1)); 
+LBMat(1,oddInds) = stanceLegBaseXY(1,oddInds) +  (params.l(1) + params.l(1));
 
 % give a smaller limit on the x direction tilt than the y direction.
 planeUB = [ .02 .5 .2];
 planeLB = [-.02 -.5 .05];
-UB = [reshape(UBMat, [1 2*nStanceLegs]) planeUB];
-LB = [reshape(LBMat, [1 2*nStanceLegs]) planeLB];
+UB = [reshape(UBMat, [1 2*nStanceLegs]) planeUB .2];
+LB = [reshape(LBMat, [1 2*nStanceLegs]) planeLB .05];
 % linear ineq constraints: the front legs are in front of the back legs, etc.
 A = zeros(length(oddInds)-1 + length(evenInds)-1, length(UB));
 for i = 1:length(oddInds)-1
@@ -152,9 +147,9 @@ end
 B = ones(length(oddInds)-1 + length(evenInds)-1 ,1) * -.1;
 Aeq = []; % linear eq constraints
 Beq = [];
-options = optimset('TolCon', 1e-3, 'TolFun', 1e-3, 'MaxFunEvals', 10000 );
-costFun = @costWalk3;
-nonlinconFun = @nonlinconWalk3;
+options = optimset('TolCon', 1e-3, 'TolFun', 1e-3, 'MaxFunEvals', 5000 );
+costFun = @costWalk4;
+nonlinconFun = @nonlinconWalk4;
 
  plt = SnakeMonsterPlotter(); 
 

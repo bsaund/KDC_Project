@@ -1,10 +1,11 @@
-function  [ineq_violations,eq_violations]=nonlinconWalk3(state)
+function  [ineq_violations,eq_violations]=nonlinconWalk4(state)
 % nonlinear constriants
 % C(X) <= 0 
 global xyzExtra stanceLegs extraLegs  stanceLegBaseXY
 nStanceLegs = length(stanceLegs);
-xyStep = state(1:end-3);
-planexyc = state(end-2:end);
+xyStep = state(1:end-4);
+planexyc = state(end-3:end-1);
+% stepLength = state(end);
 
 xyz = zeros(3,6);
 xyz(:,extraLegs) =xyzExtra;

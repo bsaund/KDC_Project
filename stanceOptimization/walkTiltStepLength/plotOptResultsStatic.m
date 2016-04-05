@@ -7,7 +7,6 @@ close all;
  %% plot the results
  xyStepOpt = stateOpt(1:end-3);
 planexyc = stateOpt(end-2:end);
-
  xyz(1:2,stanceLegs) = reshape(xyStepOpt, [2,nStanceLegs]); 
 % set the feet z positions to be the projection on to the plane
 % planex*x + planey*y + z +planec = 0
@@ -42,10 +41,10 @@ projBodyCoM = bodyCoM + temp*normals;
     set(gcf, 'position', [10 100 500 500]);
 projectedCOM = scatter3(0,0,0,'k', 'filled');
 supportLines = plot3(0,0,0,'k');
-% scatterCentroid = scatter3(0,0,0,'b');
+scatterCentroid = scatter3(0,0,0,'b');
   set(supportLines, 'xdata', xOrdered(1,:), 'ydata',xOrdered(2,:), ...
      'zdata', xOrdered(3,:));
   inSupport = inpolygon(projBodyCoM(1,end),projBodyCoM(2,end),xOrdered(1,:),xOrdered(2,:));
   set(projectedCOM, 'xdata', projBodyCoM(1), 'ydata',projBodyCoM(2), 'zdata', projBodyCoM(3),...
      'markerFaceColor', [1 0 0]*~inSupport);
-%   set(scatterCentroid, 'xdata', xCentroid(1), 'ydata',xCentroid(2), 'zdata',xCentroid(3));
+  set(scatterCentroid, 'xdata', xCentroid(1), 'ydata',xCentroid(2), 'zdata',xCentroid(3));
