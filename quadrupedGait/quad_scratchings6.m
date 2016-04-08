@@ -254,8 +254,7 @@ for t = t_span
     % gravity compensation torques: (assumes fixed base)
     legTorques = kin.getLegGravCompTorques(th, gravity);
     % the force on each foot is the chassis weight plus the fixed module
-    % segments, in the direction opposite gravity, divided evenly among
-    % stance legs.
+    % segments, in the direction opposite gravity, divided with pinv
     
     xyzContact = xyzFK(:,~swingLegs);
     bodyMass = (params.robotMass +sum(masses(1,:))/2);

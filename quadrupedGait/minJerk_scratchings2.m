@@ -11,7 +11,7 @@ plot3(0,0,0); hold on;
 xlabel('x'); ylabel('y'); zlabel('z');
 xlim([-a a]*1.5);
 ylim([-b b ]*1.5);
-fractionStep = 1/5; % how long is it in the air out of 1 second
+fractionStep = 1/2; % how long is it in the air out of 1 second
 stepPeriod = 2*pi*fractionStep;  % how long the stepping lasts
 % solve for coefficients to create trajectory with min jerk
 jerkCoeffs = minimumJerk( 0, 0, 0, ... % Starting Phase/Vel/Accel
