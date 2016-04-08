@@ -2,6 +2,7 @@
 global plt
 close all;
      plt = SnakeMonsterPlotter(); 
+     kin = SnakeMonsterKinematics();
 
 
  %% plot the results

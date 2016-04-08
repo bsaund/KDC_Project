@@ -6,16 +6,16 @@
 % where stability is COM farthest from the edges of the polygon subject to joint limits 
 
 
-close all; clc;
+close all; clc; clear all;
 addpath(genpath('C:\Users\medgroup01\Documents\Julian\snakeMonster\KDC_Project'));
 % addpath(genpath('C:\Users\Julian\Box Sync\CMU sem 1+2\snakeMonster\KDC_project'));
 
 
-global kin params plt A
+global kin params plt A evals
 global xyzExtra nLegs stanceLegs extraLegs stepOrder  stanceLegBaseXY
 global stepDirection stepLength phasesToTest swingAtPhasesToTest
 % stuff to set by hand:
-stanceLegs = [2 3 4 5 6]; % array of legs that are in the air, stretched out far
+stanceLegs = [ 3 4 5 6]; % array of legs that are in the air, stretched out far
 
 
 %% sorting and making leg arrays
@@ -26,7 +26,7 @@ nStanceLegs = length(stanceLegs);
 stepDirection = 0; % the heading for the steps in terms of the body frame.
 % 0 is straight ahead, pi/2 is walking right, etc.
 stepDirection = mod(stepDirection,2*pi);
-stepLength = .1; % might later be an optimized parameter
+stepLength = .15; % might later be an optimized parameter
 
 % walking states: which legs are walking, swinging, extra.
 fractionStep = 1/nStanceLegs;
@@ -81,7 +81,7 @@ phasesToTest = mod(phasesToTest, 2*pi);
 
 %% initial pose and parameters
 th0 = zeros(1, 3*nLegs); % joint angles: for each leg, proximal to distal
-% th0([12,15]) = [-pi/2, pi/2];
+th0([13,16]) = [pi/2, -pi/2]; % start back legs pointing back
 params = SMPhysicalParameters();
 SMData = makeSMData(params);
 kin = SnakeMonsterKinematics; % does all the kinamatics
@@ -135,8 +135,8 @@ UBMat(1,oddInds) = .35; % not too far out
 LBMat(1,evenInds) = -.35; % not too far out 
 
 % give a smaller limit on the x direction tilt than the y direction.
-planeUB = [ .02 .5 .2];
-planeLB = [-.02 -.5 .05];
+planeUB = [ .02 .6 .2];
+planeLB = [-.02 -.6 .05];
 UB = [reshape(UBMat, [1 2*nStanceLegs]) planeUB];
 LB = [reshape(LBMat, [1 2*nStanceLegs]) planeLB];
 % linear ineq constraints: the front legs are in front of the back legs, etc.
@@ -159,6 +159,7 @@ nonlinconFun = @nonlinconWalk3;
  plt = SnakeMonsterPlotter(); 
 
 %% the big optimization
+evals = 0; % number of evaluations of cost function
  stateOpt = fmincon(costFun,state0,A,B,Aeq,Beq,LB,UB,nonlinconFun,options);
 %  stateOpt = simulannealbnd(@costWalk1,state0,LB,UB);
  

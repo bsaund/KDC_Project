@@ -1,6 +1,6 @@
 function f = costWalk3(state)
 
-global kin xyzExtra stanceLegs extraLegs  plt A 
+global kin xyzExtra stanceLegs extraLegs  plt A evals
 global stepDirection phasesToTest swingAtPhasesToTest stepOrder stepLength
 nStanceLegs = length(stanceLegs);
 
@@ -75,7 +75,7 @@ for k = 1:nPhases
 %     costPhases(k) = distToLine + exp(distToLine*10);
 %     costPhases(k) = 10*(distToLine + 5*sigmf(distToLine,[50 0]));
 %     costPhases(k) = exp(distToLine*50); % works pretty well
-    costPhases(k) = exp(distToLine*500); % ?
+    costPhases(k) = exp(distToLine*100); % ?
 
     
 
@@ -100,10 +100,11 @@ x = reshape(permute(CoMsInterest, [3, 2, 1]), [sizeCoMs(2)*sizeCoMs(3),sizeCoMs(
 IP = x' * x;
 dEven = sqrt(bsxfun(@plus, diag(IP), diag(IP)') - 2 * IP); % matrix with distance from point i to point j
 % includes the distance to i to i.
-pointDistCost = 1000*sigmf(-dEven+.04,[100 0]);
-pointDistCost(1:sizeCoMs(3)*sizeCoMs(2)+1:end) = 0; % don't penalize the link being itself!
+% pointDistCost = 1000*sigmf(-dEven+.04,[100 0]);
+pointDistCostEven =heaviside(-(dEven-.06)).*10000.*(dEven-.06).^2;
+pointDistCostEven(1:sizeCoMs(3)*sizeCoMs(2)+1:end) = 0; % don't penalize the link being itself!
 costPhases(k) =  costPhases(k) ...
-    + sum(sum(pointDistCost));
+    + sum(sum(pointDistCostEven))*300;
 % odd side:
 %  CoMsInterest = CoMs(:,2:end-1,[1 3 5]); % I only care about collisions near center of leg
  CoMsInterest = CoMs(:,:,[1 3 5]); % 
@@ -112,10 +113,11 @@ x = reshape(permute(CoMsInterest, [3, 2, 1]), [sizeCoMs(2)*sizeCoMs(3),sizeCoMs(
 IP = x' * x;
 dOdd = sqrt(bsxfun(@plus, diag(IP), diag(IP)') - 2 * IP); % matrix with distance from point i to point j
 % includes the distance to i to i.
-pointDistCost = 1000*sigmf(-dOdd+.04,[100 0]);
-pointDistCost(1:sizeCoMs(3)*sizeCoMs(2)+1:end) = 0; % don't penalize the link being itself!
+% pointDistCost = 1000*sigmf(-dOdd+.04,[100 0]);
+pointDistCostOdd =heaviside(-(dOdd-.06)).*10000.*(dOdd-.06).^2;
+pointDistCostOdd(1:sizeCoMs(3)*sizeCoMs(2)+1:end) = 0; % don't penalize the link being itself!
 costPhases(k) =  costPhases(k) ...
-    + sum(sum(pointDistCost));
+    + sum(sum(pointDistCostOdd))*300;
 
 
     
@@ -123,7 +125,7 @@ costPhases(k) =  costPhases(k) ...
 xyStepT = reshape(xyz(1:2,stanceLegs), [1,2*nStanceLegs]);
 footOverlap= A*[xyStepT 0 0 0].';
 costPhases(k) =  costPhases(k) ...
-    + sum(exp((footOverlap+.01)*100));
+    + sum(exp((footOverlap+.01)*100))*100;
 
 % plt.plot(thIK);
 
@@ -131,8 +133,11 @@ end
 % plt.plot(thIK);
 f = sum(costPhases);
    
-%  
+evals = evals + 1;
  
+if ~mod(evals, 500)
+    plt.plot(thIK);
+end
 
 %{
 % penalize the feet being close together

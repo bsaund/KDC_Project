@@ -8,7 +8,7 @@ logging = 0; % Writes a hebi log
 
 addpath(genpath('C:\Users\medgroup01\Documents\Julian\snakeMonster\KDC_Project'));
 
-mainStanceOpt; % runs the stance optimization
+% mainStanceOpt; % runs the stance optimization
 % we now have a kinematics object, stanceLegs, and a full set of angles
 % (thFull) to send as a desired pose.
 

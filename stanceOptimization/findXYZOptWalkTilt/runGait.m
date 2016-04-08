@@ -1,7 +1,7 @@
 % runGait
 % takes the parameters from the gait optimization and plays them out.
 
-makeVideo = 0; % video recording flag
+makeVideo = 1; % video recording flag
 
 nCycles = 2;
 nWaypoints = 100;
@@ -9,8 +9,8 @@ t_span = linspace(0,2*pi*nCycles,nWaypoints*nCycles);
 dt = (2*pi*nCycles-0)/(nWaypoints*nCycles-1);
 a_forward = stepLength/2; % 
 a_back = stepLength/2; % step length = a_forward  + a_back
-b = .06; % step height = b. .06 works.
- stepWayPoints = [0 -a_back 0; 0 0 b; 0 a_forward 0]; % determine which points the feet pass through in plane
+b = .06; % step height = b. .06 works. 
+ 
 stepPeriod = 2*pi*fractionStep;  % how long the stepping lasts
 % solve for coefficients to create trajectory with min jerk
 jerkCoeffs = minimumJerk( 0, 0, 0, ... % Starting Phase/Vel/Accel
@@ -21,6 +21,9 @@ stepDirVector = R_z(stepDirection)*[0;1;0];
 planeNormal = [planexyc(1); planexyc(2); 1];
 stepDirOnPlane = stepDirVector - dot(stepDirVector, planeNormal)/dot(planeNormal, planeNormal) * planeNormal;
 stepDirOnPlane = stepDirOnPlane/norm(stepDirOnPlane); % normalize to length one
+%  stepWayPoints = [0 -a_back 0; 0 0 b; 0 a_forward 0]; % determine which points the feet pass through in plane
+stepWayPoints = [-a_back*stepDirOnPlane.';  0 0 b; a_forward*stepDirOnPlane.'];
+
 [n_theta] = vrrotvec([0;0;1], planeNormal);
   RFromPlane = rotmat(n_theta(1:3).', n_theta(end));
 fractionStep = 1/nStanceLegs;
@@ -35,7 +38,7 @@ xyz(3,stanceLegs) = ...
 xyzStance0 = xyz; % save original configuration for modification
 
  if makeVideo
-     v = VideoWriter(['gaitVid5.avi']);
+     v = VideoWriter(['fourLegLongStep4_7_1pm.avi']);
       open(v);
   end
 
