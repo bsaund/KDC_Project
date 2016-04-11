@@ -6,10 +6,10 @@
 
 
 simulation = 1; %0 to turn off simulation
-sendCommands = 0; % 1 to turn on commands to real robot
-plotting =0; % makes some plots to show torques and such.
+sendCommands = 1; % 1 to turn on commands to real robot
+plotting =1; % makes some plots to show torques and such.
 logging = 0; % Writes a hebi log
-joyStick = 0; % using the joystick to drive
+joyStick = 1; % using the joystick to drive
 
 addpath(genpath('C:\Users\medgroup01\Documents\Julian\snakeMonster\KDC_Project'));
 % addpath(genpath('C:\Users\Julian\Box Sync\CMU sem 1+2\snakeMonster\KDC_project'));
@@ -25,7 +25,7 @@ th0 = zeros(3,6); % joint angles: each column is a leg (proximal to distal)
 params = SMPhysicalParameters();
 SMData = makeSMData(params);
 inch2m = 0.0254;
-gravity = [0 0 -9.81];
+gravity = [0 0 -9.81].';
 odd = [1,3,5]; even= [2 4 6];
 
 kin = SnakeMonsterKinematics; % does all the kinamatics
@@ -257,7 +257,7 @@ for t = t_span
     % segments, in the direction opposite gravity, divided with pinv
     
     xyzContact = xyzFK(:,~swingLegs);
-    bodyMass = (params.robotMass +sum(masses(1,:))/2);
+    bodyMass = (params.robotMass +sum(sum(masses)));
     cmdFootForce = zeros(6,1);
     % the commanded foot force based on a best fit to the force distribution
     cmdFootForce(~swingLegs) = pinv(xyzContact) * -gravity*bodyMass;
@@ -289,7 +289,7 @@ for t = t_span
     if simulation
         %  set(0, 'CurrentFigure', simFig)
         plt.plot(reshape(th,[1,18]));
-        axes(simAx); % change current ax to the one in the sm plotter
+%         axes(simAx); % change current ax to the one in the sm plotter
         %         scatter3(xyzFK(1,:), xyzFK(2,:), xyzFK(3,:), 'r');
         %         scatter3(xyz(1,:), xyz(2,:), xyz(3,:), [], swingLegs, 'filled');
         %         set(scatterCoM, 'xdata', legCoM(1,:), 'ydata',legCoM(2,:), 'zdata',legCoM(3,:));

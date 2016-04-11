@@ -22,7 +22,7 @@ ineq_violations = zeros(1,nStanceLegs);
 
 
 Rmax = .25;
-% Rmin = .1;
+Rmin = .07;
 for k = 1:nStanceLegs
     dFromBody = [xyStep(2*k-1:2*k)- stanceLegBaseXY(:,k).', xyzContact(3,k)^2];
     % make sure the xyz positions stay within a circle of the base
@@ -31,8 +31,8 @@ for k = 1:nStanceLegs
       dFromBody*dFromBody.' - Rmax^2;
   % make sure the xyz positions are not too close
 % % dist >= Rmin --> Rmin - dist <=0
-%    ineq_violations(k+nStanceLegs) =...
-%       Rmin^2 -  dFromBody*dFromBody.';
+   ineq_violations(k+nStanceLegs) =...
+      Rmin^2 -  dFromBody*dFromBody.';
 end
 
 

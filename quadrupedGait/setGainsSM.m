@@ -25,10 +25,10 @@ gains.controlStrategy= ones(1, numModules) *4; % strategy 4
     gains.positionOutputLowpassGain = ones(1, numModules) * 1;
     gains.positionDOnError = ones(1, numModules) * 1;
 
-    gains.velocityKp = ones(1, numModules) * 0.2;
+    gains.velocityKp = ones(1, numModules) * .5;
     gains.velocityKi = ones(1, numModules) * .000;
     gains.velocityIClamp = ones(1, numModules) * .0;
-    gains.velocityKd = ones(1, numModules) * 0;
+    gains.velocityKd = ones(1, numModules) * .5;
     gains.velocityFF = ones(1, numModules) * 1/maxVelocityRadS;
     gains.velocityDeadZone = ones(1, numModules) * 0.05;
     gains.velocityPunch = ones(1, numModules) * 0.00;
@@ -40,7 +40,7 @@ gains.controlStrategy= ones(1, numModules) *4; % strategy 4
     gains.velocityOutputLowpassGain = ones(1, numModules) * 1;
     gains.velocityDOnError = ones(1, numModules) * 1;
 
-    gains.torqueKp = ones(1, numModules) * .5; % past value .5
+    gains.torqueKp = ones(1, numModules) * .2; % past value .5
     gains.torqueKi = ones(1, numModules) * 0;
     gains.torqueIClamp = ones(1, numModules) * 0;
     gains.torqueKd = ones(1, numModules) * 25;
@@ -64,5 +64,5 @@ snakeMonster.setCommandLifetime(0);
 
 % end
 
-pause(2.0);
+pause(.5);
 
