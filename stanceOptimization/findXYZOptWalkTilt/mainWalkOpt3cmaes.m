@@ -6,7 +6,7 @@
 % where stability is COM farthest from the edges of the polygon subject to joint limits 
 
 
-close all; clc;
+close all; clc; clear all;
 addpath(genpath('C:\Users\medgroup01\Documents\Julian\snakeMonster\KDC_Project'));
 % addpath(genpath('C:\Users\Julian\Box Sync\CMU sem 1+2\snakeMonster\KDC_project'));
 
@@ -15,7 +15,7 @@ global kin params plt A evals
 global xyzExtra nLegs stanceLegs extraLegs stepOrder  stanceLegBaseXY
 global stepDirection stepLength phasesToTest swingAtPhasesToTest
 % stuff to set by hand:
-stanceLegs = [ 2 3 4 5 6]; % array of legs that are in the air, stretched out far
+stanceLegs = [ 3 4 5 6]; % array of legs that are in the air, stretched out far
 
 
 %% sorting and making leg arrays
@@ -26,7 +26,7 @@ nStanceLegs = length(stanceLegs);
 stepDirection = 0; % the heading for the steps in terms of the body frame.
 % 0 is straight ahead, pi/2 is walking right, etc.
 stepDirection = mod(stepDirection,2*pi);
-stepLength = .2; % .1 ok. .15 good for 5 legs.
+stepLength = .1; % .1 ok
 
 % walking states: which legs are walking, swinging, extra.
 fractionStep = 1/nStanceLegs;
@@ -118,11 +118,11 @@ xyStep0 = reshape(xyz0(1:2,stanceLegs), [1, 2*nStanceLegs]); % initial value: al
 planex = 0;
 planey = .2;
 planec = .2;
-% state0 = [xyStep0 planex planey planec];
+state0 = [xyStep0 planex planey planec];
 
 % % get the starting position from the stance optimizer:
 % mainWalkOpt2;
-state0 = stateOpt;
+% state0 = stateOpt;
 
 
 %% set up the optimization 
@@ -153,18 +153,26 @@ for i = 1:length(evenInds)-1
 A(i+length(oddInds)-1,evenInds(i)*2) = -1;
 A(i+length(oddInds)-1,evenInds(i+1)*2) = 1;
 end
-B = ones(length(oddInds)-1 + length(evenInds)-1 ,1) * -.05; % -.1 works
-Aeq = []; % linear eq constraints
-Beq = [];
-options = optimset('TolCon', 1e-3, 'TolFun', 1e-3, 'MaxFunEvals', 10000 );
-costFun = @costWalk3;
-nonlinconFun = @nonlinconWalk3;
+% % B = ones(length(oddInds)-1 + length(evenInds)-1 ,1) * -.05; % -.1 works
+% % Aeq = []; % linear eq constraints
+% % Beq = [];
+% % options = optimset('TolCon', 1e-3, 'TolFun', 1e-3, 'MaxFunEvals', 10000 );
+% % costFun = @costWalk3;
+% % nonlinconFun = @nonlinconWalk3;
 
  plt = SnakeMonsterPlotter(); 
 
+ 
+ % use CMA-ES
+opts.LBounds = LB.';
+opts.UBounds = UB.';
+opts.TolFun = 1e-3; % lower function change threshold so that the program actually ends eventually
+sigma = (UB-LB/2).'; sigma(sigma>10) = 1;
 %% the big optimization
 evals = 0; % number of evaluations of cost function
- stateOpt = fmincon(costFun,state0,A,B,Aeq,Beq,LB,UB,nonlinconFun,options);
+stateOpt = cmaes('costCMAES', state0, sigma, opts); 
+
+%  stateOpt = fmincon(costFun,state0,A,B,Aeq,Beq,LB,UB,nonlinconFun,options);
 %  stateOpt = simulannealbnd(@costWalk1,state0,LB,UB);
  
 plotOptResultsStatic;

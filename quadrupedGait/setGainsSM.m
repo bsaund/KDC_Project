@@ -10,9 +10,9 @@
     
     maxTorque = 12; % N-m
 gains.controlStrategy= ones(1, numModules) *4; % strategy 4
-    gains.positionKp = ones(1, numModules) * 10.0;% past value: 6
+    gains.positionKp = ones(1, numModules) * 8;% past value: 6
     gains.positionKi = ones(1, numModules) * 0;
-    gains.positionKd = ones(1, numModules) * 30; % past value: 30
+    gains.positionKd = ones(1, numModules) * 35; % past value: 30
     gains.positionIClamp = ones(1, numModules) * 0;
     gains.positionFF = ones(1, numModules) * 0;
     gains.positionPunch = ones(1, numModules) * 0;
@@ -28,7 +28,7 @@ gains.controlStrategy= ones(1, numModules) *4; % strategy 4
     gains.velocityKp = ones(1, numModules) * .5;
     gains.velocityKi = ones(1, numModules) * .000;
     gains.velocityIClamp = ones(1, numModules) * .0;
-    gains.velocityKd = ones(1, numModules) * .5;
+    gains.velocityKd = ones(1, numModules) * .75;
     gains.velocityFF = ones(1, numModules) * 1/maxVelocityRadS;
     gains.velocityDeadZone = ones(1, numModules) * 0.05;
     gains.velocityPunch = ones(1, numModules) * 0.00;

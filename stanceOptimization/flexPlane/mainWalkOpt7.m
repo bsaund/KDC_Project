@@ -4,7 +4,8 @@
 % find the gait parameters (starting foot positions from body center, step length) 
 % which maximize stability for a few time points in the gait cycle
 % where stability is COM farthest from the edges of the polygon subject to joint limits 
-
+% allow the transformation between the body and foot plane to change at
+% each time step phase tested. Foot start positions fixed in plane.
 
 close all; clc;
 addpath(genpath('C:\Users\medgroup01\Documents\Julian\snakeMonster\KDC_Project'));
@@ -82,6 +83,7 @@ for k = 1:nStanceLegs-1
    phasesToTest(2*k+1,:)= phase0 + k*swingPhaseLength;% -.01;
 end
 phasesToTest = mod(phasesToTest, 2*pi);
+nPhases = size(phasesToTest,1);
 
 %% initial pose and parameters
 th0 = zeros(1, 3*nLegs); % joint angles: for each leg, proximal to distal
@@ -113,16 +115,22 @@ xyz = xyz0;
 xyStep0 = reshape(xyz0(1:2,stanceLegs), [1, 2*nStanceLegs]); % initial value: all legs 
 % form of: [x1 y1 x2 y2 ...]
 
-% fitting a plane in stead of a z0... planex*x + planey*y + z + planec = 0
-% this is a plane 
-planex = 0;
-planey = .2;
-planec = .2;
-% state0 = [xyStep0 planex planey planec];
+% parameters to optimize:
+% thetaX at each step (pitch in RB_P)
+% thetaY at each step (roll in RB_P)
+% (leave yaw = 0 for now)
+% rB_P at each step (all three components)
+% foot pose x y in plane at t=0
+thetaX = 0;
+thetaY = 0;
+rB_P = [0;0; .2];
+transform0 = repmat([thetaX; thetaY; rB_P], [1,nPhases/2] );
 
-% % get the starting position from the stance optimizer:
-% mainWalkOpt2;
-state0 = stateOpt;
+% state0 = [xyStep0 planex planey planec];
+state0 = [xyStep0 transform0(:).'];
+
+% % get the starting position from the last stance optimizer:
+% state0 = stateOpt;
 
 
 %% set up the optimization 
@@ -132,17 +140,33 @@ state0 = stateOpt;
 stanceLegBaseXY = legBaseXY(:, stanceLegs);
 oddInds =find(mod(stanceLegs,2)==1); % the indexes of the odd legs in stanceLegs
 evenInds= find(mod(stanceLegs,2)==0);
-UBMat = Inf(2,nStanceLegs); LBMat = -UBMat;
-UBMat(1,evenInds) = stanceLegBaseXY(1,evenInds) - (params.l(1) + params.l(1)); % not below body
-LBMat(1,oddInds) = stanceLegBaseXY(1,oddInds) +  (params.l(1) + params.l(1));  % not below body
-UBMat(1,oddInds) = .35+.05; % not too far out 
-LBMat(1,evenInds) = -.35-.05; % not too far out 
+footUBMat = Inf(2,nStanceLegs); footLBMat = -footUBMat;
+footUBMat(1,evenInds) = stanceLegBaseXY(1,evenInds) - (params.l(1) + params.l(1)); % not below body
+footLBMat(1,oddInds) = stanceLegBaseXY(1,oddInds) +  (params.l(1) + params.l(1));  % not below body
+footUBMat(1,oddInds) = .35+.05; % not too far out 
+footLBMat(1,evenInds) = -.35-.05; % not too far out 
 
-% give a smaller limit on the x direction tilt than the y direction.
-planeUB = [ .02 .6 .25];
-planeLB = [-.02 -.6 .05];
-UB = [reshape(UBMat, [1 2*nStanceLegs]) planeUB];
-LB = [reshape(LBMat, [1 2*nStanceLegs]) planeLB];
+% bounds for the transformation
+transformUBMat = zeros(size( transform0));
+transformLBMat = zeros(size( transform0));
+% first row: thetaX
+transformUBMat(1,:) = pi/4;
+transformLBMat(1,:) = -pi/4;
+% second row: thetaY
+transformUBMat(2,:) = pi/4;
+transformLBMat(2,:) = -pi/4;
+% third row: rB_P x
+transformUBMat(3,:) = params.W/2;
+transformLBMat(3,:) = -params.W/2;
+% fourth row: rB_P y
+transformUBMat(4,:) = params.L/2;
+transformLBMat(4,:) = -params.L/2;
+% fifth row: rB_P z
+transformUBMat(5,:) = .3;
+transformLBMat(5,:) = .05;
+
+UB = [reshape(footUBMat, [1 2*nStanceLegs]) transformUBMat(:).'];
+LB = [reshape(footLBMat, [1 2*nStanceLegs]) transformLBMat(:).'];
 % linear ineq constraints: the front legs are in front of the back legs, etc.
 A = zeros(length(oddInds)-1 + length(evenInds)-1, length(UB));
 for i = 1:length(oddInds)-1
@@ -156,15 +180,15 @@ end
 B = ones(length(oddInds)-1 + length(evenInds)-1 ,1) * -.05; % -.1 works
 Aeq = []; % linear eq constraints
 Beq = [];
-options = optimset('TolCon', 1e-3, 'TolFun', 1e-3, 'MaxFunEvals', 10000 );
-costFun = @costWalk3;
-nonlinconFun = @nonlinconWalk3;
+options = optimset('TolCon', 1e-3, 'TolFun', 1e-3, 'MaxFunEvals', 1000 );
+costFun = @costWalk7;
+nonlinconFun = @nonlinconWalk7;
 
- plt = SnakeMonsterPlotter(); 
+plt = SnakeMonsterPlotter(); 
 
 %% the big optimization
 evals = 0; % number of evaluations of cost function
  stateOpt = fmincon(costFun,state0,A,B,Aeq,Beq,LB,UB,nonlinconFun,options);
 %  stateOpt = simulannealbnd(@costWalk1,state0,LB,UB);
  
-plotOptResultsStatic;
+plotResults;

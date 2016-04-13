@@ -4,13 +4,38 @@ classdef SnakeMonsterKinematics < handle
 % Documentation is lax because this is just for a KDC project.
     
     methods(Access = public)
-        function this = SnakeMonsterKinematics()
+        function this = SnakeMonsterKinematics(varargin)
         %SNAKEMONSTERKINEMATICS constructor, no arguments necessary
-            this.lfLeg = this.getLeg();
+            p = inputParser;
+            addParameter(p,'grippers',0,@isnumeric);
+            parse(p,varargin{:});
+            
+            grips = p.Results.grippers;
+            
+            if grips<0 || grips >2 || floor(grips) ~= grips
+                message('Error.Number of grippers must be 0,1,or 2');
+                error(message)
+            end
+        
+            if grips == 1
+                this.rfLeg = this.getLegWithGripper('side','right');
+                this.lfLeg = this.getLeg();
+                
+                this.rfDummy = this.getLegWithDummyGripper('side','right');
+            elseif grips == 2
+                this.rfLeg = this.getLegWithGripper('side','right');
+                this.lfLeg = this.getLegWithGripper('side','left');
+                
+                this.rfDummy = this.getLegWithDummyGripper('side','right');
+                this.lfDummy = this.getLegWithDummyGripper('side','left');
+            else
+                this.rfLeg = this.getLeg();
+                this.lfLeg = this.getLeg();
+            end
+            
             this.lmLeg = this.getLeg();
-            this.lbLeg = this.getLeg();
-            this.rfLeg = this.getLeg();
             this.rmLeg = this.getLeg();
+            this.lbLeg = this.getLeg();
             this.rbLeg = this.getLeg();
             
             %Set base frame of each joint
@@ -35,7 +60,8 @@ classdef SnakeMonsterKinematics < handle
                 this.trans([-width,0,0,-pi/2-offset,0,pi/2]));
             this.lbLeg.setBaseFrame(...
                 this.trans([-width,-length,0,-pi/2-offset,0,pi/2]));
-
+            
+            this.grip = grips;
         end
         
         function kin = getLeg(this)
@@ -75,14 +101,124 @@ classdef SnakeMonsterKinematics < handle
             
         end
 
+        function kin = getLegWithGripper(this,varargin)
+        %Gets a HebiKinematics object for a leg with a gripper
+            
+            p = inputParser;
+            
+            expectedSides = {'right','left'};
+            addParameter(p, 'side', 'right', ...
+                         @(x) any(validatestring(x,expectedSides)));
+                     
+            parse(p, varargin{:});
+            
+            right = strcmpi(p.Results.side, 'right');
+            
+            if right
+                elbow_orient = -pi/2;
+            else
+                elbow_orient = pi/2;
+            end
+        
+            kin = HebiKinematics();
+            kin.addBody('FieldableElbowJoint');
+            kin.addBody('FieldableElbowJoint');
+            kin.addBody('FieldableStraightLink', 'ext1', .063-.0122, ...
+                        'twist', pi/2);
+            kin.addBody('FieldableElbowJoint');
+            kin.addBody('FieldableElbowLink', ...
+                        'ext1', 0.046 - 0.0360, 'twist1', -pi/2, ...
+                        'ext2', 0.0318 - 0.0336, 'twist2', pi);
+                        %HEBI kinematics defaults to the elbow joint having
+                        %0.0336m on a side. Ours (apparently) has 0.046 on the
+                        %upper portion and 0.0318 on the lower
+            kin.addBody('FieldableStraightLink', 'ext1', 0.0551-0.0122, ...
+                        'twist', 0);
+                        %Desired length + part of foot (for pretty graphing)
+                        % - base length of straight link
+            kin.addBody('FieldableElbowLink', ...
+                        'ext1', 0.046 - 0.0360, 'twist1', elbow_orient, ...
+                        'ext2', 0.0318- 0.0336, 'twist2', pi);
+                        %HEBI kinematics defaults to the elbow joint having
+                        %0.0336m on a side. Ours (apparently) has 0.046 on the
+                        %upper portion and 0.0318 on the lower
+            kin.addBody('FieldableStraightLink', 'ext1', 0.0142-0.0122,...
+                        'twist', -pi/2);
+                        %Adding small connector piece before gripper
+            kin.addBody('FieldableGripper');
+                        %Gripper similar to a fieldable elbow joint
+        end
+        
+        function kin = getLegWithDummyGripper(this,varargin)
+        %Gets a HebiKinematics object for a leg with a gripper
+            
+            p = inputParser;
+            
+            expectedSides = {'right','left'};
+            addParameter(p, 'side', 'right', ...
+                         @(x) any(validatestring(x,expectedSides)));
+                     
+            parse(p, varargin{:});
+            
+            right = strcmpi(p.Results.side, 'right');
+            
+            if right
+                elbow_orient = -pi/2;
+            else
+                elbow_orient = pi/2;
+            end
+        
+            kin = HebiKinematics();
+            kin.addBody('FieldableElbowJoint');
+            kin.addBody('FieldableElbowJoint');
+            kin.addBody('FieldableStraightLink', 'ext1', .063-.0122, ...
+                        'twist', pi/2);
+            kin.addBody('FieldableElbowJoint');
+            kin.addBody('FieldableElbowLink', ...
+                        'ext1', 0.046 - 0.0360, 'twist1', -pi/2, ...
+                        'ext2', 0.0318 - 0.0336, 'twist2', pi);
+                        %HEBI kinematics defaults to the elbow joint having
+                        %0.0336m on a side. Ours (apparently) has 0.046 on the
+                        %upper portion and 0.0318 on the lower
+            kin.addBody('FieldableStraightLink', 'ext1', 0.0551-0.0122, ...
+                        'twist', 0);
+                        %Desired length + part of foot (for pretty graphing)
+                        % - base length of straight link
+            kin.addBody('FieldableElbowLink', ...
+                        'ext1', 0.046 - 0.0360, 'twist1', elbow_orient, ...
+                        'ext2', 0.0318- 0.0336, 'twist2', pi);
+                        %HEBI kinematics defaults to the elbow joint having
+                        %0.0336m on a side. Ours (apparently) has 0.046 on the
+                        %upper portion and 0.0318 on the lower
+            kin.addBody('FieldableStraightLink', 'ext1', 0.0142+0.0639-0.0122,...
+                        'twist', -pi/2);
+                        %Adding small connector piece and dummy gripper
+                        %length
+        end
+
         function positions = getLegPositions(this, angles)
         %Gets the xyz positions of each leg in the body frame
         %angles is a 18 element vector of joint angles
         %positions is a 3x6 matrix
         
+            if size(angles,1)>size(angles,2)
+                legAngles1 = [angles(1:3);0];
+                legAngles2 = [angles(4:6);0];
+            else
+                legAngles1 = [angles(1:3),0];
+                legAngles2 = [angles(4:6),0];
+            end
             fk = zeros(4,4,6);
-            fk(:,:,1) = this.rfLeg.getFK('EndEffector', angles(1:3));
-            fk(:,:,2) = this.lfLeg.getFK('EndEffector', angles(4:6));
+            if this.grip == 0
+                fk(:,:,1) = this.rfLeg.getFK('EndEffector', angles(1:3));
+                fk(:,:,2) = this.lfLeg.getFK('EndEffector', angles(4:6));
+            elseif this.grip == 1
+                fk(:,:,1) = this.rfLeg.getFK('EndEffector', legAngles1);
+                fk(:,:,2) = this.lfLeg.getFK('EndEffector', angles(4:6));
+            elseif this.grip == 2
+                fk(:,:,1) = this.rfLeg.getFK('EndEffector', legAngles1);
+                fk(:,:,2) = this.lfLeg.getFK('EndEffector', legAngles2);
+            end
             fk(:,:,3) = this.rmLeg.getFK('EndEffector', angles(7:9));
             fk(:,:,4) = this.lmLeg.getFK('EndEffector', angles(10:12));
             fk(:,:,5) = this.rbLeg.getFK('EndEffector', angles(13:15));           
@@ -95,26 +231,68 @@ classdef SnakeMonsterKinematics < handle
         %Gets the xyz positions of the COM of each joint in each leg in the body frame
         %angles is a 18 element vector of joint angles
         %positions is a 3x6 matrix
-        
-            CoMs = zeros(3,5,6);
-            CoMs(:,:,1) = this.getXYZ(this.rfLeg.getFK('CoM', angles(1:3)));
-            CoMs(:,:,2) = this.getXYZ(this.lfLeg.getFK('CoM', angles(4:6)));
-            CoMs(:,:,3) = this.getXYZ(this.rmLeg.getFK('CoM', angles(7:9)));
-            CoMs(:,:,4) = this.getXYZ(this.lmLeg.getFK('CoM', angles(10:12)));
-            CoMs(:,:,5) = this.getXYZ(this.rbLeg.getFK('CoM', angles(13:15)));           
-            CoMs(:,:,6) = this.getXYZ(this.lbLeg.getFK('CoM', angles(16:18)));
+            if size(angles,1)>size(angles,2)
+                legAngles1 = [angles(1:3);0];
+                legAngles2 = [angles(4:6);0];
+            else
+                legAngles1 = [angles(1:3),0];
+                legAngles2 = [angles(4:6),0];
+            end
             
+            if this.grip == 0
+                CoMs = zeros(3,9,6);
+                CoMs(:,1:5,1) = this.getXYZ(this.rfLeg.getFK('CoM', angles(1:3)));
+                CoMs(:,1:5,2) = this.getXYZ(this.lfLeg.getFK('CoM', angles(4:6)));
+                CoMs(:,1:5,3) = this.getXYZ(this.rmLeg.getFK('CoM', angles(7:9)));
+                CoMs(:,1:5,4) = this.getXYZ(this.lmLeg.getFK('CoM', angles(10:12)));
+                CoMs(:,1:5,5) = this.getXYZ(this.rbLeg.getFK('CoM', angles(13:15)));           
+                CoMs(:,1:5,6) = this.getXYZ(this.lbLeg.getFK('CoM', angles(16:18)));
+            elseif this.grip == 1
+                CoMs = zeros(3,9,6); %XYZ, Body Number, Leg Number
+                CoMs(:,:,1) = this.getXYZ(this.rfLeg.getFK('CoM', legAngles1));  %Currently is 9 bodies but the others are 5
+                CoMs(:,1:5,2) = this.getXYZ(this.lfLeg.getFK('CoM', angles(4:6)));
+                CoMs(:,1:5,3) = this.getXYZ(this.rmLeg.getFK('CoM', angles(7:9)));
+                CoMs(:,1:5,4) = this.getXYZ(this.lmLeg.getFK('CoM', angles(10:12)));
+                CoMs(:,1:5,5) = this.getXYZ(this.rbLeg.getFK('CoM', angles(13:15)));           
+                CoMs(:,1:5,6) = this.getXYZ(this.lbLeg.getFK('CoM', angles(16:18)));
+            elseif this.grip == 2
+                CoMs = zeros(3,9,6); %XYZ, Body Number, Leg Number
+                CoMs(:,:,1) = this.getXYZ(this.rfLeg.getFK('CoM', legAngles1));
+                CoMs(:,:,2) = this.getXYZ(this.lfLeg.getFK('CoM', legAngles2));
+                CoMs(:,1:5,3) = this.getXYZ(this.rmLeg.getFK('CoM', angles(7:9)));
+                CoMs(:,1:5,4) = this.getXYZ(this.lmLeg.getFK('CoM', angles(10:12)));
+                CoMs(:,1:5,5) = this.getXYZ(this.rbLeg.getFK('CoM', angles(13:15)));           
+                CoMs(:,1:5,6) = this.getXYZ(this.lbLeg.getFK('CoM', angles(16:18)));
+            end
         end
         
         function masses = getLegMasses(this)
           %Returns the masses of all of the segments in the legs
-          masses = zeros(5,6);
-          masses(:,1) = this.rfLeg.getBodyMasses();
-          masses(:,2) = this.lfLeg.getBodyMasses();
-          masses(:,3) = this.rmLeg.getBodyMasses();
-          masses(:,4) = this.lmLeg.getBodyMasses();
-          masses(:,5) = this.rbLeg.getBodyMasses();
-          masses(:,6) = this.lbLeg.getBodyMasses();
+          if this.grip == 0
+              masses = zeros(9,6);
+              masses(1:5,1) = this.rfLeg.getBodyMasses();
+              masses(1:5,2) = this.lfLeg.getBodyMasses();
+              masses(1:5,3) = this.rmLeg.getBodyMasses();
+              masses(1:5,4) = this.lmLeg.getBodyMasses();
+              masses(1:5,5) = this.rbLeg.getBodyMasses();
+              masses(1:5,6) = this.lbLeg.getBodyMasses();
+          elseif this.grip == 1
+              masses = zeros(9,6);
+              masses(:,1) = this.rfLeg.getBodyMasses();
+              masses(1:5,2) = this.lfLeg.getBodyMasses();
+              masses(1:5,3) = this.rmLeg.getBodyMasses();
+              masses(1:5,4) = this.lmLeg.getBodyMasses();
+              masses(1:5,5) = this.rbLeg.getBodyMasses();
+              masses(1:5,6) = this.lbLeg.getBodyMasses();
+          elseif this.grip == 2
+              masses = zeros(9,6);
+              masses(:,1) = this.rfLeg.getBodyMasses();
+              masses(:,2) = this.lfLeg.getBodyMasses();
+              masses(1:5,3) = this.rmLeg.getBodyMasses();
+              masses(1:5,4) = this.lmLeg.getBodyMasses();
+              masses(1:5,5) = this.rbLeg.getBodyMasses();
+              masses(1:5,6) = this.lbLeg.getBodyMasses();
+          end
           
         end
         
@@ -153,22 +331,35 @@ classdef SnakeMonsterKinematics < handle
             SnakeMonsterCoM = (scaledLegsCoM+baseMass*baseCoM)/totalMass;
           
         end
-      
         
-       
-   
         function J = getLegJacobians(this, angles)
         %Gets the jacobian (world frame) of all the legs 
-        %angles is a 18 element vector of joint angles
-        
-            J = zeros(6,3,6);
-            J(:,:,1) = (this.rfLeg.getJacobian('EndEffector', angles(1:3)));
-            J(:,:,2) = (this.lfLeg.getJacobian('EndEffector', angles(4:6)));
-            J(:,:,3) = (this.rmLeg.getJacobian('EndEffector', angles(7:9)));
-            J(:,:,4) = (this.lmLeg.getJacobian('EndEffector', angles(10:12)));
-            J(:,:,5) = (this.rbLeg.getJacobian('EndEffector', angles(13:15)));           
-            J(:,:,6) = (this.lbLeg.getJacobian('EndEffector', angles(16:18)));
-            
+        %angles is a 18 element vector of joint angles    
+            if this.grip == 0
+                J = zeros(6,3,6);
+                J(:,:,1) = (this.rfLeg.getJacobian('EndEffector', angles(1:3)));
+                J(:,:,2) = (this.lfLeg.getJacobian('EndEffector', angles(4:6)));
+                J(:,:,3) = (this.rmLeg.getJacobian('EndEffector', angles(7:9)));
+                J(:,:,4) = (this.lmLeg.getJacobian('EndEffector', angles(10:12)));
+                J(:,:,5) = (this.rbLeg.getJacobian('EndEffector', angles(13:15)));           
+                J(:,:,6) = (this.lbLeg.getJacobian('EndEffector', angles(16:18)));
+            elseif this.grip == 1
+                J = zeros(6,3,6);
+                J(:,:,1) = (this.rfDummy.getJacobian('EndEffector', angles(1:3)));
+                J(:,:,2) = (this.lfLeg.getJacobian('EndEffector', angles(4:6)));
+                J(:,:,3) = (this.rmLeg.getJacobian('EndEffector', angles(7:9)));
+                J(:,:,4) = (this.lmLeg.getJacobian('EndEffector', angles(10:12)));
+                J(:,:,5) = (this.rbLeg.getJacobian('EndEffector', angles(13:15)));           
+                J(:,:,6) = (this.lbLeg.getJacobian('EndEffector', angles(16:18)));
+            elseif this.grip == 2
+                J = zeros(6,3,6);
+                J(:,:,1) = (this.rfDummy.getJacobian('EndEffector', angles(1:3)));
+                J(:,:,2) = (this.lfDummy.getJacobian('EndEffector', angles(4:6)));
+                J(:,:,3) = (this.rmLeg.getJacobian('EndEffector', angles(7:9)));
+                J(:,:,4) = (this.lmLeg.getJacobian('EndEffector', angles(10:12)));
+                J(:,:,5) = (this.rbLeg.getJacobian('EndEffector', angles(13:15)));           
+                J(:,:,6) = (this.lbLeg.getJacobian('EndEffector', angles(16:18)));
+            end
         end
         
         function gravCompTorques = getLegGravCompTorques(this, angles, gravity)
@@ -176,26 +367,71 @@ classdef SnakeMonsterKinematics < handle
         %angles is a 18 element vector of joint angles
         % gravity is a 1x3 vector which says which way gravity is pointing.
         % returns a 3x6 where each colum is torques for a leg
-            gravCompTorques = zeros(3,6);
-            gravCompTorques(:,1) = (this.rfLeg.getGravCompTorques(angles(1:3),gravity));
-            gravCompTorques(:,2) = (this.lfLeg.getGravCompTorques(angles(4:6),gravity));
-            gravCompTorques(:,3) = (this.rmLeg.getGravCompTorques(angles(7:9),gravity));
-            gravCompTorques(:,4) = (this.lmLeg.getGravCompTorques(angles(10:12),gravity));
-            gravCompTorques(:,5) = (this.rbLeg.getGravCompTorques(angles(13:15),gravity));           
-            gravCompTorques(:,6) = (this.lbLeg.getGravCompTorques(angles(16:18),gravity));
+        
+            if size(angles,1)>size(angles,2)
+                legAngles1 = [angles(1:3);0];
+                legAngles2 = [angles(4:6);0];
+            else
+                legAngles1 = [angles(1:3),0];
+                legAngles2 = [angles(4:6),0];
+            end
             
-      end
+            if this.grip == 0
+                gravCompTorques = zeros(4,6);
+                gravCompTorques(1:3,1) = (this.rfLeg.getGravCompTorques(angles(1:3),gravity));
+                gravCompTorques(1:3,2) = (this.lfLeg.getGravCompTorques(angles(4:6),gravity));
+                gravCompTorques(1:3,3) = (this.rmLeg.getGravCompTorques(angles(7:9),gravity));
+                gravCompTorques(1:3,4) = (this.lmLeg.getGravCompTorques(angles(10:12),gravity));
+                gravCompTorques(1:3,5) = (this.rbLeg.getGravCompTorques(angles(13:15),gravity));
+                gravCompTorques(1:3,6) = (this.lbLeg.getGravCompTorques(angles(16:18),gravity));
+            elseif this.grip == 1
+                gravCompTorques = zeros(4,6);
+                gravCompTorques(:,1) = (this.rfLeg.getGravCompTorques(legAngles1,gravity));
+                gravCompTorques(1:3,2) = (this.lfLeg.getGravCompTorques(angles(4:6),gravity));
+                gravCompTorques(1:3,3) = (this.rmLeg.getGravCompTorques(angles(7:9),gravity));
+                gravCompTorques(1:3,4) = (this.lmLeg.getGravCompTorques(angles(10:12),gravity));
+                gravCompTorques(1:3,5) = (this.rbLeg.getGravCompTorques(angles(13:15),gravity));
+                gravCompTorques(1:3,6) = (this.lbLeg.getGravCompTorques(angles(16:18),gravity));
+            elseif this.grip == 2
+                gravCompTorques = zeros(4,6);
+                gravCompTorques(:,1) = (this.rfLeg.getGravCompTorques(legAngles1,gravity));
+                gravCompTorques(:,2) = (this.lfLeg.getGravCompTorques(legAngles2,gravity));
+                gravCompTorques(1:3,3) = (this.rmLeg.getGravCompTorques(angles(7:9),gravity));
+                gravCompTorques(1:3,4) = (this.lmLeg.getGravCompTorques(angles(10:12),gravity));
+                gravCompTorques(1:3,5) = (this.rbLeg.getGravCompTorques(angles(13:15),gravity));
+                gravCompTorques(1:3,6) = (this.lbLeg.getGravCompTorques(angles(16:18),gravity));
+            end
+            
+        end
       
         function angles = getIK(this, xd)
         %Gets the joint angles to position the feed at xd
         %xd is a 3x6 matrix of desired potiions
         %angles is a 18 element vector of joint angles
-            angles(1:3) = this.rfLeg.getIK('xyz', xd(:,1));
-            angles(4:6) = this.lfLeg.getIK('xyz', xd(:,2));
-            angles(7:9) = this.rmLeg.getIK('xyz', xd(:,3));
-            angles(10:12) = this.lmLeg.getIK('xyz', xd(:,4));
-            angles(13:15) = this.rbLeg.getIK('xyz', xd(:,5));
-            angles(16:18) = this.lbLeg.getIK('xyz', xd(:,6));
+            if this.grip == 0
+                angles(1:3) = this.rfLeg.getIK('xyz', xd(:,1));
+                angles(4:6) = this.lfLeg.getIK('xyz', xd(:,2));
+                angles(7:9) = this.rmLeg.getIK('xyz', xd(:,3));
+                angles(10:12) = this.lmLeg.getIK('xyz', xd(:,4));
+                angles(13:15) = this.rbLeg.getIK('xyz', xd(:,5));
+                angles(16:18) = this.lbLeg.getIK('xyz', xd(:,6));
+            elseif this.grip == 1
+                angles = zeros(19,1);
+                angles(1:3) = this.rfDummy.getIK('xyz', xd(:,1));
+                angles(4:6) = this.lfLeg.getIK('xyz', xd(:,2));
+                angles(7:9) = this.rmLeg.getIK('xyz', xd(:,3));
+                angles(10:12) = this.lmLeg.getIK('xyz', xd(:,4));
+                angles(13:15) = this.rbLeg.getIK('xyz', xd(:,5));
+                angles(16:18) = this.lbLeg.getIK('xyz', xd(:,6));
+            elseif this.grip == 2
+                angles = zeros(20,1);
+                angles(1:3) = this.rfDummy.getIK('xyz', xd(:,1));
+                angles(4:6) = this.lfDummy.getIK('xyz', xd(:,2));
+                angles(7:9) = this.rmLeg.getIK('xyz', xd(:,3));
+                angles(10:12) = this.lmLeg.getIK('xyz', xd(:,4));
+                angles(13:15) = this.rbLeg.getIK('xyz', xd(:,5));
+                angles(16:18) = this.lbLeg.getIK('xyz', xd(:,6));
+            end
         end
     end
     
@@ -256,6 +492,8 @@ classdef SnakeMonsterKinematics < handle
         rfLeg;
         rmLeg;
         rbLeg;
-   
+        rfDummy;
+        lfDummy;
+        grip;
     end
 end

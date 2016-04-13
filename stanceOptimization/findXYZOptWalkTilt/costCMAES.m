@@ -1,4 +1,4 @@
-function f = costWalk3(state)
+function f = costCMAES(state)
 
 global kin xyzExtra stanceLegs extraLegs  plt A evals
 global stepDirection phasesToTest swingAtPhasesToTest stepOrder stepLength
@@ -140,85 +140,5 @@ evals = evals + 1;
 if ~mod(evals, 500)
     plt.plot(thIK);
 end
-
-%{
-% penalize the feet being close together
-
-IP = xyz0(:,stanceLegs).' * xyz0(:,stanceLegs);
-d = sqrt(bsxfun(@plus, diag(IP), diag(IP)') - 2 * IP); % matrix with distance from point i to point j
-f = f - sum(sum(d));
-%}
-
-
-
-%     % % encourage the points to be far away
-% delta_xyz = repmat(projBodyCoM, [1,nStanceLegs]) - xyz(:,stanceLegs);
-% wX= 100; wY = 100; wZ = 100;
-%  f =  f ...
-%     - delta_xyz(1,:)*wX*delta_xyz(1,:).' ...
-%     - delta_xyz(2,:)*wY*delta_xyz(2,:).'...
-%     - delta_xyz(3,:)*wZ*delta_xyz(3,:).';
-
-
-
-
-
-
-% thIK = kin.getIK(xyz);
-
-% get the COM:
-% CoMs = kin.getCenterOfMasses(thIK);
-% bodyCoM = ...
-%     [ reshape(CoMs, [3,30]) zeros(3,1)]*...
-%     [reshape(masses, [30,1]); params.robotMass] / sum([reshape(masses, [30,1]); params.robotMass]);
-% % project it onto the plane:
-% % project it onto the plane:
-% % difference between origins of plane and point
-% % dp = bsxfun(@minus, origins, point);
-% dp = [0; 0; -planexyc(3)] - bodyCoM;
-% % relative position of point on normal's line
-% % t = bsxfun(@rdivide, sum(bsxfun(@times,normals,dp),2), sum(normals.^2,2));
-% normals = [planexyc(1); planexyc(2); 1];
-% temp = sum(normals.*dp)/sum(normals.^2);
-% % add relative difference to project point back to plane
-% % projBodyCoM = bsxfun(@plus, point, bsxfun(@times, t, normals));
-% projBodyCoM = bodyCoM + temp*normals;
-
-% % %  the support polygon
-% xyzContact = xyz(:,stanceLegs);
-% K = convhull(xyzContact(1:2,:).');
-% xOrdered = xyzContact(:,K.');
-% xCentroid = mean(xOrdered(:,1:end-1),2);
-
-% f=0;
-% % % this criterion minimizes the distance to the nearest line, using
-% % % p_poly_dist
-% distToLine = p_poly_dist(projBodyCoM(1),projBodyCoM(2), xOrdered(1,:) ,xOrdered(2,:),  1);
-% f = f + distToLine; % returns a negative number if inside the polygon.
-
-% criterion minimizing the distances to the nearest line:
-% % http://mathworld.wolfram.com/Point-LineDistance3-Dimensional.html
-% distToLines = zeros(1,length(K)-1);
-% for k = 1:(length(K)-1)
-%     distToLines(k) = norm(cross(projBodyCoM - xOrdered(:,k), projBodyCoM - xOrdered(:,k+1)))/...
-%         norm(xOrdered(:,k+1) - xOrdered(:,k));
-% end
-% % take only the closest one, and multiply if be wether its in the support
-% minDistToLine = min(distToLines)*inpolygon(projBodyCoM(1),projBodyCoM(2),xOrdered(1,:),xOrdered(2,:));
-% f = f + minDistToLine;
-
-% % % this criterion encourages the COM close to the centroid
-% distToCentroid = sqrt(sum((bodyCoM(1:2) - xCentroid(1:2)).^2));
-% f = f + distToCentroid;
-
-% % encourage the points to be far away
-% delta_xyz = repmat(projBodyCoM, [1,nStanceLegs]) - xyzContact;
-% wX= .5; wY = .5; wZ = 0.5;
-% f = f ...
-%     - delta_xyz(1,:)*wX*delta_xyz(1,:).' ...
-%     - delta_xyz(2,:)*wY*delta_xyz(2,:).'...
-%     - delta_xyz(3,:)*wZ*delta_xyz(3,:).';
-
-
 end
 

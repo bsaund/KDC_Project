@@ -9,7 +9,7 @@
 sendCommands = 1; % 1 to turn on commands to real robot
 logging = 0; % Writes a hebi log
 plotting = 0;
-withClaw = 0;
+withClaw = 1;
 close all; clc;
 addpath(genpath('C:\Users\medgroup01\Documents\Julian\snakeMonster\KDC_Project'));
 joy = vrjoystick(1);
@@ -33,10 +33,12 @@ if sendCommands
 end
 
 % testing: start with a previously found stance
-% load('C:\Users\medgroup01\Documents\Julian\snakeMonster\KDC_Project\stanceOptimization\findXYZOptWalkTilt\fourLegsOk4_9_2pm.mat');
-load('C:\Users\medgroup01\Documents\Julian\snakeMonster\KDC_Project\stanceOptimization\findXYZOptWalkTilt\fiveLegGreat4_6_10am.mat');
+% load('C:\Users\medgroup01\Documents\Julian\snakeMonster\KDC_Project\stanceOptimization\findXYZOptWalkTilt\fourLegOk4_11_4pm.mat');
+% load('C:\Users\medgroup01\Documents\Julian\snakeMonster\KDC_Project\stanceOptimization\findXYZOptWalkTilt\fiveLegGreat4_6_10am.mat');
 % load('C:\Users\medgroup01\Documents\Julian\snakeMonster\KDC_Project\stanceOptimization\findXYZOptWalkTilt\sixLegGood4_6_10am.mat');
-    
+load('C:\Users\medgroup01\Documents\Julian\snakeMonster\KDC_Project\stanceOptimization\findXYZOptWalkTilt\fiveLegLongStep4_12_3pm.mat');
+
+
     if withClaw
         plt = SnakeMonsterPlotter('gripper', 1);
     else
@@ -58,7 +60,8 @@ aForward = stepLength/2; %
 aBack = stepLength/2; % step length = a_forward  + a_back
 aBackBase = aBack;
 aForwardBase = aForward;
-b = .06; % step height = b. .06 works.
+% stepHeight = .06; % step height = b. .06 works.
+stepHeight = .08; % step height = b. .06 works.
 
 legPhaseDiffs = 2*pi/nStanceLegs*(nStanceLegs:-1:1);
 fractionStep = 1/nStanceLegs;
@@ -81,7 +84,7 @@ planeNormal = [planexyc(1); planexyc(2); 1];
 stepDirOnPlane = stepDirVector - dot(stepDirVector, planeNormal)/dot(planeNormal, planeNormal) * planeNormal;
 stepDirOnPlane = stepDirOnPlane/norm(stepDirOnPlane); % normalize to length one
 %  stepWayPoints = [0 -a_back 0; 0 0 b; 0 a_forward 0]; % determine which points the feet pass through in plane
-stepWayPoints = [-aBack*stepDirOnPlane.';  0 0 b; aForward*stepDirOnPlane.'];
+stepWayPoints = [-aBack*stepDirOnPlane.';  0 0 stepHeight; aForward*stepDirOnPlane.'];
 [n_theta] = vrrotvec([0;0;1], planeNormal);
 RFromPlane = rotmat(n_theta(1:3).', n_theta(end));
 swingLegs = zeros(1,6); % 1 indicates leg is in the air
@@ -142,6 +145,7 @@ while running
          stepDirection(stepDirection<-pi/2) = stepDirection + pi;
         aBack = aBackBase * sqrt(sum(modifiedStickVal(1:2).^2)/2);
         aForward = aForwardBase * sqrt(sum(modifiedStickVal(1:2).^2)/2);
+%         disp(aForward+aBack)
     if modifiedStickVal(2)<-.02
         stepping = 1;
         direction = 1;
@@ -157,9 +161,9 @@ while running
     if sendCommands
     % get feedback
     fbk = snakeMonster.getNextFeedback();
-        thLast = fbk.position;
+        thLast = fbk.position(1:end-length(clawAngle));
     else
-      thLast = thIK;
+        thLast = thIK;
     end
     
     stepDirVector = R_z(stepDirection)*[0;1;0];
@@ -167,7 +171,7 @@ planeNormal = [planexyc(1); planexyc(2); 1];
 stepDirOnPlane = stepDirVector - dot(stepDirVector, planeNormal)/dot(planeNormal, planeNormal) * planeNormal;
 stepDirOnPlane = stepDirOnPlane/norm(stepDirOnPlane); % normalize to length one
 %  stepWayPoints = [0 -a_back 0; 0 0 b; 0 a_forward 0]; % determine which points the feet pass through in plane
-stepWayPoints = [-aBack*stepDirOnPlane.';  0 0 b; aForward*stepDirOnPlane.'];
+stepWayPoints = [-aBack*stepDirOnPlane.';  0 0 stepHeight; aForward*stepDirOnPlane.'];
     
     if stepping
         t = t + dt*direction*1.5;
@@ -184,37 +188,49 @@ stepWayPoints = [-aBack*stepDirOnPlane.';  0 0 b; aForward*stepDirOnPlane.'];
         end
     end % end if stepping
     
+    if ~isempty(extraLegs)
+        thIKMatLast = reshape(thLast, [3 6]);
+        thClawLast = thIKMatLast(:,extraLegs(1));
+    end
 
         % moving the Claw arm
         % axes3 - left right
-        % axes4 - up down
-        % povs: buttons5 forwards, buttons7 back
+        % axes4 - front back
+        % povs: buttons6 up, buttons8 down
         factor = 2;
         dxClaw = modifiedStickVal(3)*.01;
         dyClaw = -modifiedStickVal(4)*.01;
-        dzClaw = .01*(buttons(5) - buttons(7));
+%          dphiClaw = modifiedStickVal(3)*.01;
+%         dRClaw = -modifiedStickVal(4)*.01;
+        dzClaw = .005*(buttons(6) - buttons(8));
         xyzClaw = xyz(:,extraLegs(1))+ [dxClaw; dyClaw; dzClaw]*factor;
+%         xyzClaw = xyz(:,extraLegs(1))+ [dRClaw*cos(dphiClaw); dRClaw*sin(dphiClaw); dzClaw]*factor;
         % cap limits
         xyzClaw = min(xyzClaw,[.2; .4; .3]);
         xyzClaw = max(xyzClaw,[0; .1; -planexyc(3)-.02]);
         xyz(:,extraLegs(1)) =  xyzClaw;
    if ~isempty(extraLegs)&&withClaw
-        % buttons(8) opens
-        % buttons(6) closes
-        clawAngle = clawAngle + buttons(6)*.1;
-        clawAngle = clawAngle - buttons(8)*.1;
+        % buttons(7) opens
+        % buttons(5) closes
+        clawOpenFactor = .3;
+        clawAngle = clawAngle + (buttons(5)- buttons(7))*clawOpenFactor;
         clawAngle = min(clawAngle, pi/8);
         clawAngle = max(clawAngle, -pi/2);
-    end
-    
+   end
+   
+
+     
     thIK = kin.getIK(xyz);
-    
-    % make sure extra arms elbows don't flip
-    thIKMat = reshape(thIK, [3 6]);
-    if ~isempty(extraLegs)
-        thIKMat(1,extraLegs(1)) = min(thIKMat(1,extraLegs(1)), 0);
-        thIK = reshape(thIKMat, [1 18]);
-    end
+
+%     % make sure extra arms elbows don't flip
+%     thIKMat = reshape(thIK, [3 6]);
+%     if ~isempty(extraLegs)
+%         thClaw = thIKMat(:,extraLegs(1));
+%         if norm(thClaw-thClawLast)>pi/2
+%             thIKMat(:,extraLegs(1))= thClawLast;
+%         end
+%         thIK = reshape(thIKMat, [1 18]);
+%     end
 
     
     xyzFK = kin.getLegPositions(thIK);
@@ -239,17 +255,18 @@ stepWayPoints = [-aBack*stepDirOnPlane.';  0 0 b; aForward*stepDirOnPlane.'];
     
     % calculate velocity
     thDot = (thIK-thLast(1:18))/dt;
-    thDot(abs(thDot)<.2) = 0; % erase small velocities
+    thDot(abs(thDot)<.2) = NaN; % erase small velocities
     
     % sending commands
     if sendCommands
-        cmd.position = [reshape(thIK,[1,18]) clawAngle+pi/4];
+        cmd.position = [reshape(thIK,[1,18]) clawAngle+pi/4+pi/8];
         cmd.torque= [reshape(legTorques, [1,18]) NaN(size(clawAngle))];
         cmd.velocity = [thDot, NaN(size(clawAngle))];
         snakeMonster.set(cmd);
     end
     
-        plt.plot([thIK clawAngle]);
+        plt.plot([thIK clawAngle]); % needs this for time delay!
+
     if plotting
         
         bodyCoM = kin.getSnakeMonsterCoM([thIK clawAngle]);

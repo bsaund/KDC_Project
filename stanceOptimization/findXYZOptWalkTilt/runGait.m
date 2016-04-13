@@ -3,7 +3,7 @@
 
 makeVideo = 0; % video recording flag
 
-nCycles = 2;
+nCycles = 1;
 nWaypoints = 100;
 t_span = linspace(0,2*pi*nCycles,nWaypoints*nCycles);
 dt = (2*pi*nCycles-0)/(nWaypoints*nCycles-1);
