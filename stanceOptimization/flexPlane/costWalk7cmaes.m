@@ -1,4 +1,4 @@
-function f = costWalk7(state)
+function f = costWalk7cmaes(state)
 
 global kin xyzExtra stanceLegs extraLegs  plt A evals nLegs
 global stepDirection phasesToTest swingAtPhasesToTest stepOrder stepLength
@@ -8,7 +8,6 @@ xyStep = state(1:2*nStanceLegs);
 transforms = state(2*nStanceLegs+1:end);
 
 xyz = zeros(3,6);
-% xyz(:,extraLegs) =xyzExtra;
 xyz(1:2,stanceLegs) = reshape(xyStep, [2,nStanceLegs]);
 % foot positions on the plane are zero.
 xyz(3,stanceLegs) = 0;
@@ -17,10 +16,8 @@ xyz(3,stanceLegs) = 0;
 stepDirVector = R_z(stepDirection)*[0;1;0];
 
 
-%% For each of the phasesToTest evaluate a cost of projectedCoM and distance
-% from centroid. Add them up.
+%% For each of the phasesToTest evaluate a cost of projectedCoM 
 % Harshly penalize being outside the polygon
-
 
 a_forward = stepLength/2; % params.L/3
 a_back = stepLength/2; % step length = a_forward  + a_back
@@ -44,7 +41,6 @@ for k = 1:nPhases
             + xyz0(:,leg);
     end
     
-    
     % find the positions of the feet in the body frame.
     % transformation of Body viewed from Plane
     rB_P = transformsMat(3:end, transformPhaseOrder(k)); % vector of B wrt P,
@@ -63,7 +59,7 @@ for k = 1:nPhases
     currentStanceLegs = stanceLegs(~swingAtPhasesToTest(k,:));
     thIK = kin.getIK(xyzB);
     bodyCoM = kin.getSnakeMonsterCoM(thIK);
-       % project it onto the plane:
+          % project it onto the plane:
     dp = TP_B(1:3,4) - bodyCoM;% difference between origins of plane and point
     planeNormal = TP_B(1:3,3); % z direction on plane frame viewed from body frame
     temp = sum(planeNormal.*dp)/sum(planeNormal.^2);
@@ -79,8 +75,6 @@ for k = 1:nPhases
     distToLine = p_poly_dist(projBodyCoMRot(1),projBodyCoMRot(2), xOrderedRot(1,:) ,xOrderedRot(2,:),  1);
     
     % add this cost to the cost matrix, which will be summed at the end
-    %     costPhases(k) = exp(distToLine*100); % works pretty well
-    %  costPhases(k) = heaviside((distToLine+.02))*((distToLine+.02)*200)^2; % work well
     costPhases(k) = heaviside((distToLine+.02))*((distToLine+.02)*500)^2; % ?
     
     
@@ -88,20 +82,13 @@ for k = 1:nPhases
     % discourage the joints from coming too close together.
     CoMs = kin.getCenterOfMasses(thIK);
     %  http://stackoverflow.com/questions/19360047/how-to-build-a-distance-matrix-without-loop
-    % x = [xl(:)'; yl(:)'; zl(:)'];
-    % IP = x' * x;
-    % d = sqrt(bsxfun(@plus, diag(IP), diag(IP)') - 2 * IP);
-    % even side:
-    %  CoMsInterest = CoMs(:,2:end-1,[2 4 6]);
     CoMsInterest = CoMs(:,:,[2 4 6]);
     sizeCoMs = size(CoMsInterest);
     x = reshape(permute(CoMsInterest, [3, 2, 1]), [sizeCoMs(2)*sizeCoMs(3),sizeCoMs(1)]).'; % x;y;z for all points
     IP = x' * x;
     dEven = sqrt(bsxfun(@plus, diag(IP), diag(IP)') - 2 * IP); % matrix with distance from point i to point j
     % includes the distance to i to i.
-    % pointDistCost = 1000*sigmf(-dEven+.04,[100 0]);
-%     pointDistCostEven =heaviside(-(dEven-.06)).*10000.*(dEven-.06).^2;
-    pointDistCostEven =heaviside(-(dEven-.07)).*1000.*(dEven-.07).^2;
+    pointDistCostEven =heaviside(-(dEven-.1)).*10000.*(dEven-.1).^2;
     pointDistCostEven(1:sizeCoMs(3)*sizeCoMs(2)+1:end) = 0; % don't penalize the link being itself!
     costPhases(k) =  costPhases(k) ...
         + sum(sum(pointDistCostEven))*300;
@@ -113,9 +100,7 @@ for k = 1:nPhases
     IP = x' * x;
     dOdd = sqrt(bsxfun(@plus, diag(IP), diag(IP)') - 2 * IP); % matrix with distance from point i to point j
     % includes the distance to i to i.
-    % pointDistCost = 1000*sigmf(-dOdd+.04,[100 0]);
-%     pointDistCostOdd =heaviside(-(dOdd-.06)).*10000.*(dOdd-.06).^2;
-    pointDistCostOdd =heaviside(-(dOdd-.07)).*1000.*(dOdd-.07).^2;
+    pointDistCostOdd =heaviside(-(dOdd-.1)).*10000.*(dOdd-.1).^2;
     pointDistCostOdd(1:sizeCoMs(3)*sizeCoMs(2)+1:end) = 0; % don't penalize the link being itself!
     costPhases(k) =  costPhases(k) ...
         + sum(sum(pointDistCostOdd))*300;
@@ -128,8 +113,22 @@ for k = 1:nPhases
 %     costPhases(k) =  costPhases(k) ...
 %         + sum(exp((footOverlap+.01)*100))*100;
     
+%     plt.plot(thIK);
 
- 
+
+% nonlinear parts turned into costs:
+% FK matching
+  xyzFK = kin.getLegPositions(thIK);
+   errs = xyzB(:,stanceLegs) - xyzFK(:,stanceLegs);
+   costPhases(k) =  costPhases(k) + sum(sum(errs.^2))*10000;
+    
+      % make sure the legs don't overlap
+    % penalize having a foot in front of another during the gait
+    xyStepT = reshape(xyz(1:2,stanceLegs), [1,2*nStanceLegs]);
+    footOverlap= A*[xyStepT zeros(1,5*nPhases/2)].';
+    costPhases(k) =  costPhases(k) + sum(footOverlap)*10000;
+    
+   
 end
 % plt.plot(thIK);
 f = sum(costPhases);

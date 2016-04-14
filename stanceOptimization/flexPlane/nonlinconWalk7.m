@@ -1,7 +1,7 @@
 function  [ineqViolations,eqViolations]=nonlinconWalk7(state)
 % nonlinear constriants
 % C(X) <= 0
-global  xyzExtra stanceLegs extraLegs   stanceLegBaseXY A
+global  xyzExtra stanceLegs extraLegs   stanceLegBaseXY A kin
 global stepDirection phasesToTest stepOrder stepLength nLegs
 nStanceLegs = length(stanceLegs);
 
@@ -29,9 +29,13 @@ a_back = stepLength/2; % step length = a_forward  + a_back
 fractionStep = 1/nStanceLegs;
 nPhases = size(phasesToTest,1);
 
-ineqViolationsMat1 = zeros(nStanceLegs,nPhases/2); % for max
-ineqViolationsMat2 = zeros(nStanceLegs,nPhases/2); % for min
-ineqViolationsMat3 = zeros(size(A,1), nPhases/2);
+% ineqViolationsMat1 = zeros(nStanceLegs,nPhases/2); % for max radius
+% ineqViolationsMat2 = zeros(nStanceLegs,nPhases/2); % for min radius
+ineqViolationsMat1 =[]; ineqViolationsMat2=[];
+
+ineqViolationsMat3 = zeros(size(A,1), nPhases/2); % for foot overlap
+ineqViolationsMat4 = zeros(nStanceLegs ,nPhases/2); % for max foot height
+ineqViolationsMat5 = zeros(nStanceLegs ,nPhases/2); % for FK matching
 
 xyz0 = xyz;
 % make pattern:  1     2     2     3     3     4     4     5     5     1
@@ -39,7 +43,7 @@ transformPhaseOrder = circshift(ceil((1:nPhases)/2),[1 -1]);
 transformsMat = reshape(transforms, [5 nPhases/2]);
 
 Rmax = .2;
-Rmin = .09;
+Rmin = .1;
 
 for k = 1:nPhases/2
     
@@ -64,29 +68,46 @@ for k = 1:nPhases/2
     xyzBh = TP_B*[xyz; ones(1,nLegs)];
     xyzBContact =xyzBh(1:3,stanceLegs);
     
-    
-    for j = 1:nStanceLegs
-        dFromBody = xyzBContact(:,j) - [stanceLegBaseXY(:,j); 0 ];
-        % make sure the xyz positions stay within a circle of the base
-        % dist <= Rmax --> dist - Rmax <=0
-        ineqViolationsMat1(j,k) =...
-            dFromBody.'*dFromBody - Rmax^2;
-        % make sure the xyz positions are not too close
-        % % dist >= Rmin --> Rmin - dist <=0
-        ineqViolationsMat2(j,k) =...
-            Rmin^2 -  dFromBody.'*dFromBody;
-    end
+    % % make sure the foot posiitons are in a sphere around the joint
+% %     for j = 1:nStanceLegs
+% %         dFromBody = xyzBContact(:,j) - [stanceLegBaseXY(:,j); 0 ];
+% %         % make sure the xyz positions stay within a circle of the base
+% %         % dist <= Rmax --> dist - Rmax <=0
+% %         ineqViolationsMat1(j,k) =...
+% %             dFromBody.'*dFromBody - Rmax^2;
+% %         % make sure the xyz positions are not too close
+% %         % % dist >= Rmin --> Rmin - dist <=0
+% %         ineqViolationsMat2(j,k) =...
+% %             Rmin^2 -  dFromBody.'*dFromBody;
+% %     end
     
     % make sure the legs don't overlap
     % penalize having a foot in front of another during the gait
     xyStepT = reshape(xyz(1:2,stanceLegs), [1,2*nStanceLegs]);
     footOverlap= A*[xyStepT zeros(1,5*nPhases/2)].';
-    ineqViolationsMat3(:,k) = footOverlap;
+    ineqViolationsMat3(:,k) = footOverlap + .05; % min foot separation
+    
+    % disallow the feet to go over the body.
+    ineqViolationsMat4(:,k) = xyzBContact(3,:).' +.08; % min foot height
+    
+%     % disallow the feet to go under the body?
+%     oddInds = find(isOdd(stanceLegs));
+%     evenInds = find(~isOdd(stanceLegs));
+%     ineqViolationsMat5(oddInds,k) = xyzBContact(1,oddInds).' +.1;
+%     ineqViolationsMat5(evenInds,k) = .1 - xyzBContact(1,evenInds).';
+    
+% force the FK to match the xyzB desired points, within a centimeter
+    thIK = kin.getIK(xyzBh(1:3,:));
+    xyzFK = kin.getLegPositions(thIK);
+   errs = xyzBContact - xyzFK(:,stanceLegs);
+  ineqViolationsMat5(:,k) = sqrt(sum(errs.^2)) - .01;
     
 end
 
 
-ineqViolations = [ineqViolationsMat2(:).' ineqViolationsMat2(:).' ineqViolationsMat3(:).'];
+ineqViolations = [ineqViolationsMat1(:).' ineqViolationsMat2(:).'...
+    ineqViolationsMat3(:).' ineqViolationsMat4(:).' ineqViolationsMat5(:).'];
+
 
 eqViolations= [];
 

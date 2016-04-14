@@ -1,8 +1,8 @@
 % plotOptResultsStatic
 global plt
 close all;
-     plt = SnakeMonsterPlotter(); 
-     kin = SnakeMonsterKinematics();
+     plt = SnakeMonsterPlotter('gripper',1); 
+     kin = SnakeMonsterKinematics('gripper',1);
 
 
  %% plot the results

@@ -26,7 +26,7 @@ nStanceLegs = length(stanceLegs);
 stepDirection = 0; % the heading for the steps in terms of the body frame.
 % 0 is straight ahead, pi/2 is walking right, etc.
 stepDirection = mod(stepDirection,2*pi);
-stepLength = .2; % .1 ok. .15 good for 5 legs.
+stepLength = .15; % .1 ok. .15 good for 5 legs.
 
 % walking states: which legs are walking, swinging, extra.
 fractionStep = 1/nStanceLegs;
@@ -88,8 +88,9 @@ th0 = zeros(1, 3*nLegs); % joint angles: for each leg, proximal to distal
 th0([13,16]) = [pi/2, -pi/2]; % start back legs pointing back
 params = SMPhysicalParameters();
 SMData = makeSMData(params);
-kin = SnakeMonsterKinematics; % does all the kinamatics
-% masses = kin.getLegMasses();
+% kin = SnakeMonsterKinematics; % does all the kinamatics
+kin = SnakeMonsterKinematics('gripper',1); % does all the kinamatics
+
 %% find the "reach out" joint angles for the extra legs
 xyz0 = kin.getLegPositions(th0); % zero position of all the legs
 xyz = xyz0;
@@ -118,11 +119,11 @@ xyStep0 = reshape(xyz0(1:2,stanceLegs), [1, 2*nStanceLegs]); % initial value: al
 planex = 0;
 planey = .2;
 planec = .2;
-% state0 = [xyStep0 planex planey planec];
+state0 = [xyStep0 planex planey planec];
 
 % % get the starting position from the stance optimizer:
 % mainWalkOpt2;
-state0 = stateOpt;
+% state0 = stateOpt;
 
 
 %% set up the optimization 
@@ -160,7 +161,7 @@ options = optimset('TolCon', 1e-3, 'TolFun', 1e-3, 'MaxFunEvals', 10000 );
 costFun = @costWalk3;
 nonlinconFun = @nonlinconWalk3;
 
- plt = SnakeMonsterPlotter(); 
+ plt = SnakeMonsterPlotter('gripper',1); 
 
 %% the big optimization
 evals = 0; % number of evaluations of cost function

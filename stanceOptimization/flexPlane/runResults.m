@@ -3,6 +3,17 @@ addpath(genpath('C:\Users\Julian\Box Sync\CMU sem 1+2\snakeMonster\KDC_project')
 addpath(genpath('C:\Users\medgroup01\Documents\Julian\snakeMonster\KDC_Project'));
 
 sendCommands = 0;
+% initialize robot
+% command structure for if sending commands
+if sendCommands
+    cmd = CommandStruct();
+cmd.position = nan(1,18);
+cmd.velocity = nan(1,18);
+cmd.torque = nan(1,18);
+setupSnakeMonsterGroup; % makes the snakeMonster hebi group object
+    setGainsSMHigh;
+
+end
 
 
 
@@ -136,6 +147,11 @@ xyzFK = kin.getLegPositions(thIK);
 %       
 %   end
   
+
+   if sendCommands
+        cmd.position = [reshape(thIK,[1,18])];
+        snakeMonster.set(cmd);
+    end
   
 end
 

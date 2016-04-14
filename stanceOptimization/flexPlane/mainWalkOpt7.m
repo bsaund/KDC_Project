@@ -16,7 +16,7 @@ global kin params plt A evals
 global xyzExtra nLegs stanceLegs extraLegs stepOrder  stanceLegBaseXY
 global stepDirection stepLength phasesToTest swingAtPhasesToTest
 % stuff to set by hand:
-stanceLegs = [ 2 3 4 5 6]; % array of legs that are in the air, stretched out far
+stanceLegs = [ 3 4 5 6]; % array of legs that are in the air, stretched out far
 
 
 %% sorting and making leg arrays
@@ -27,18 +27,17 @@ nStanceLegs = length(stanceLegs);
 stepDirection = 0; % the heading for the steps in terms of the body frame.
 % 0 is straight ahead, pi/2 is walking right, etc.
 stepDirection = mod(stepDirection,2*pi);
-stepLength = .2; % .1 ok. .15 good for 5 legs.
+stepLength = .15; % .1 ok. .15 good for 5 legs.
 
 % walking states: which legs are walking, swinging, extra.
 fractionStep = 1/nStanceLegs;
 if nStanceLegs ==5
 stepOrderBase = [1 3 4 2 6 5]; % works best for leg 1 up
 else
-%    stepOrderBase = [1 2 6 4 5 3]; % works ok
+   stepOrderBase = [1 2 6 4 5 3]; % works ok
 %    stepOrderBase = [1 2 6 3 5 4]; %  no good
 %    stepOrderBase = [1 2 6 5 4 3]; %  nope
 %       stepOrderBase = [1 2 6 5 3 4 ]; %  nah
-      stepOrderBase = [1 2 6 4 5 3]; % 
 %    stepOrderBase = [1 2 5 3 6 4 ]; % not so great
 end
 stepOrder = [];
@@ -126,11 +125,10 @@ thetaY = 0;
 rB_P = [0;0; .2];
 transform0 = repmat([thetaX; thetaY; rB_P], [1,nPhases/2] );
 
-% state0 = [xyStep0 planex planey planec];
-state0 = [xyStep0 transform0(:).'];
+% state0 = [xyStep0 transform0(:).'];
 
 % % get the starting position from the last stance optimizer:
-% state0 = stateOpt;
+state0 = stateOpt;
 
 
 %% set up the optimization 
@@ -153,17 +151,17 @@ transformLBMat = zeros(size( transform0));
 transformUBMat(1,:) = pi/4;
 transformLBMat(1,:) = -pi/4;
 % second row: thetaY
-transformUBMat(2,:) = pi/4;
-transformLBMat(2,:) = -pi/4;
+transformUBMat(2,:) = pi/6;
+transformLBMat(2,:) = -pi/6;
 % third row: rB_P x
-transformUBMat(3,:) = params.W/2;
-transformLBMat(3,:) = -params.W/2;
+transformUBMat(3,:) = params.W/8; % was /4
+transformLBMat(3,:) = -params.W/8; % was /4
 % fourth row: rB_P y
-transformUBMat(4,:) = params.L/2;
-transformLBMat(4,:) = -params.L/2;
+transformUBMat(4,:) = params.L/8; % was /4
+transformLBMat(4,:) = -params.L/8; % was /4
 % fifth row: rB_P z
-transformUBMat(5,:) = .3;
-transformLBMat(5,:) = .05;
+transformUBMat(5,:) = .35;
+transformLBMat(5,:) = .10;
 
 UB = [reshape(footUBMat, [1 2*nStanceLegs]) transformUBMat(:).'];
 LB = [reshape(footLBMat, [1 2*nStanceLegs]) transformLBMat(:).'];
@@ -180,7 +178,7 @@ end
 B = ones(length(oddInds)-1 + length(evenInds)-1 ,1) * -.05; % -.1 works
 Aeq = []; % linear eq constraints
 Beq = [];
-options = optimset('TolCon', 1e-3, 'TolFun', 1e-3, 'MaxFunEvals', 1000 );
+options = optimset('TolCon', 1e-3, 'TolFun', 1e-3, 'MaxFunEvals', 10000 );
 costFun = @costWalk7;
 nonlinconFun = @nonlinconWalk7;
 
@@ -188,7 +186,14 @@ plt = SnakeMonsterPlotter();
 
 %% the big optimization
 evals = 0; % number of evaluations of cost function
- stateOpt = fmincon(costFun,state0,A,B,Aeq,Beq,LB,UB,nonlinconFun,options);
-%  stateOpt = simulannealbnd(@costWalk1,state0,LB,UB);
+%  stateOpt = fmincon(costFun,state0,A,B,Aeq,Beq,LB,UB,nonlinconFun,options);
+
+ % use CMA-ES
+opts.LBounds = LB.';
+opts.UBounds = UB.';
+opts.TolFun = 1e-3; % lower function change threshold so that the program actually ends eventually
+sigma = (UB-LB/2).'; sigma(sigma>10) = 1;
+stateOpt = cmaes('costWalk7cmaes', state0, sigma, opts); 
+
  
 plotResults;
