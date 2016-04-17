@@ -17,17 +17,34 @@ classdef SnakeMonsterKinematics < handle
                 error(message)
             end
         
+            %Set base frame of each joint
+            %Note: There is a 1.5 degree rotation
+            width = .093; % based on reality
+            length = .097;
+%             R = this.roty(1.5*pi/180);
+            offset = 1.5*pi/180;
+            
             if grips == 1
                 this.rfLeg = this.getLegWithGripper('side','right');
                 this.lfLeg = this.getLeg();
                 
                 this.rfDummy = this.getLegWithDummyGripper('side','right');
+                
+                this.rfDummy.setBaseFrame(...
+                this.trans([width,length,0,pi/2+offset,0,pi/2]) * ...
+                this.rotz(pi));
             elseif grips == 2
                 this.rfLeg = this.getLegWithGripper('side','right');
                 this.lfLeg = this.getLegWithGripper('side','left');
                 
                 this.rfDummy = this.getLegWithDummyGripper('side','right');
                 this.lfDummy = this.getLegWithDummyGripper('side','left');
+                
+                this.rfDummy.setBaseFrame(...
+                this.trans([width,length,0,pi/2+offset,0,pi/2]) * ...
+                this.rotz(pi));
+                this.lfDummy.setBaseFrame(...
+                this.trans([-width,length,0,-pi/2-offset,0,pi/2])); 
             else
                 this.rfLeg = this.getLeg();
                 this.lfLeg = this.getLeg();
@@ -37,13 +54,6 @@ classdef SnakeMonsterKinematics < handle
             this.rmLeg = this.getLeg();
             this.lbLeg = this.getLeg();
             this.rbLeg = this.getLeg();
-            
-            %Set base frame of each joint
-            %Note: There is a 1.5 degree rotation
-            width = .093; % based on reality
-            length = .097;
-%             R = this.roty(1.5*pi/180);
-            offset = 1.5*pi/180;
             
             this.rfLeg.setBaseFrame(...
                 this.trans([width,length,0,pi/2+offset,0,pi/2]) * ...
@@ -190,7 +200,7 @@ classdef SnakeMonsterKinematics < handle
                         %HEBI kinematics defaults to the elbow joint having
                         %0.0336m on a side. Ours (apparently) has 0.046 on the
                         %upper portion and 0.0318 on the lower
-            kin.addBody('FieldableStraightLink', 'ext1', 0.0142+0.0639-0.0122,...
+            kin.addBody('FieldableStraightLink', 'ext1', 0.0142+0.0639+0.0413-0.0122,...
                         'twist', -pi/2);
                         %Adding small connector piece and dummy gripper
                         %length
