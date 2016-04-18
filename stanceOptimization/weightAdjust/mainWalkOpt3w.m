@@ -4,19 +4,23 @@
 % find the gait parameters (starting foot positions from body center, step length) 
 % which maximize stability for a few time points in the gait cycle
 % where stability is COM farthest from the edges of the polygon subject to joint limits 
-% allow the transformation between the body and foot plane to change at
-% each time step phase tested. Foot start positions fixed in plane.
+
+% add weight to the claw and adjust from there
 
 close all; clc;
 addpath(genpath('C:\Users\medgroup01\Documents\Julian\snakeMonster\KDC_Project'));
 % addpath(genpath('C:\Users\Julian\Box Sync\CMU sem 1+2\snakeMonster\KDC_project'));
 
 
-global kin params plt A evals
+global kin params plt A evals stepHeight extraMassXYZ extraMass
 global xyzExtra nLegs stanceLegs extraLegs stepOrder  stanceLegBaseXY
-global stepDirection stepLength phasesToTest swingAtPhasesToTest
+global stepDirection stepLength phasesToTest swingAtPhasesToTest masses
 % stuff to set by hand:
-stanceLegs = [ 3 4 5 6]; % array of legs that are in the air, stretched out far
+stanceLegs = [ 2 3 4 5 6]; % array of legs that are in the air, stretched out far
+
+% define the extra mass positon (assume directly in front of robot for now)
+extraMassXYZ =[0; 0; 0];
+extraMass = 1;
 
 
 %% sorting and making leg arrays
@@ -27,18 +31,19 @@ nStanceLegs = length(stanceLegs);
 stepDirection = 0; % the heading for the steps in terms of the body frame.
 % 0 is straight ahead, pi/2 is walking right, etc.
 stepDirection = mod(stepDirection,2*pi);
-stepLength = .1; % .1 ok. .15 good for 5 legs.
+stepLength = .15; % .1 ok. .15 good for 5 legs.
+stepHeight = .06;
 
 % walking states: which legs are walking, swinging, extra.
 fractionStep = 1/nStanceLegs;
 if nStanceLegs ==5
 stepOrderBase = [1 3 4 2 6 5]; % works best for leg 1 up
 else
-   stepOrderBase = [1 2 6 4 5 3]; % works ok
-%    stepOrderBase = [1 2 5 3 6 4 ]; % works ok (symmetric)
+%    stepOrderBase = [1 2 6 4 5 3]; % works ok
 %    stepOrderBase = [1 2 6 3 5 4]; %  no good
 %    stepOrderBase = [1 2 6 5 4 3]; %  nope
 %       stepOrderBase = [1 2 6 5 3 4 ]; %  nah
+      stepOrderBase = [1 2 6 4 5 3]; % 
 %    stepOrderBase = [1 2 5 3 6 4 ]; % not so great
 end
 stepOrder = [];
@@ -83,18 +88,21 @@ for k = 1:nStanceLegs-1
    phasesToTest(2*k+1,:)= phase0 + k*swingPhaseLength;% -.01;
 end
 phasesToTest = mod(phasesToTest, 2*pi);
-nPhases = size(phasesToTest,1);
 
 %% initial pose and parameters
 th0 = zeros(1, 3*nLegs); % joint angles: for each leg, proximal to distal
-th0([13,16]) = [pi/4, -pi/4]; % start back legs pointing back
+th0([13,16]) = [pi/2, -pi/2]; % start back legs pointing back
 params = SMPhysicalParameters();
 SMData = makeSMData(params);
-kin = SnakeMonsterKinematics; % does all the kinamatics
-% masses = kin.getLegMasses();
+
+% kin = SnakeMonsterKinematics; % does all the kinamatics
+kin = SnakeMonsterKinematics('gripper',1); % does all the kinamatics
+masses = kin.getLegMasses();
+
 %% find the "reach out" joint angles for the extra legs
 xyz0 = kin.getLegPositions(th0); % zero position of all the legs
 xyz = xyz0;
+xyz0(2,[1 2]) = xyz0(2,[1 2]) + .1;
  % set the non-walking legs to be up in the air
  for i = 1:(6-nStanceLegs) 
      xyz(3,extraLegs(i)) =xyz0(3,extraLegs(i)) + .2;
@@ -103,7 +111,7 @@ xyz = xyz0;
  end
  xyzExtra = xyz(:,extraLegs);
 
- % xyz for back legs move back a little
+ % xyz four back legs move back a little
  xyz0(2,[5 6]) = xyz0(2,[5 6])-.05;
  xyz0(2,[3 4]) = xyz0(2,[3 4])+.05;
  
@@ -115,23 +123,15 @@ xyz = xyz0;
 xyStep0 = reshape(xyz0(1:2,stanceLegs), [1, 2*nStanceLegs]); % initial value: all legs 
 % form of: [x1 y1 x2 y2 ...]
 
-% parameters to optimize:
-% thetaX at each step (pitch in RB_P)
-% thetaY at each step (roll in RB_P)
-% (leave yaw = 0 for now)
-% rB_P at each step (all three components)
-% foot pose x y in plane at t=0
-thetaX = 0;
-thetaY = 0;
-rB_P = [0;0; .2];
-transformMat0 = repmat([thetaX; thetaY; rB_P], [1,nPhases/2] );
-% EACH column is values at a phase to test 
-transforms = transformMat0(:);
+% fitting a plane in stead of a z0... planex*x + planey*y + z + planec = 0
+% this is a plane 
+planex = 0;
+planey = .2;
+planec = .2;
+% state0 = [xyStep0 planex planey planec];
 
- state0 = [xyStep0.'; transformMat0(:)];
-
-% % get the starting position from the last stance optimizer:
-% state0 = stateOpt;
+% % get the starting position from the stance optimizer:
+state0 = stateOpt;
 
 
 %% set up the optimization 
@@ -141,35 +141,19 @@ transforms = transformMat0(:);
 stanceLegBaseXY = legBaseXY(:, stanceLegs);
 oddInds =find(mod(stanceLegs,2)==1); % the indexes of the odd legs in stanceLegs
 evenInds= find(mod(stanceLegs,2)==0);
-footUBMat = Inf(2,nStanceLegs); footLBMat = -footUBMat;
-footUBMat(1,evenInds) = stanceLegBaseXY(1,evenInds) - (params.l(1) + params.l(1)); % not below body
-footLBMat(1,oddInds) = stanceLegBaseXY(1,oddInds) +  (params.l(1) + params.l(1));  % not below body
-footUBMat(1,oddInds) = .35+.05; % not too far out 
-footLBMat(1,evenInds) = -.35-.05; % not too far out 
+UBMat = Inf(2,nStanceLegs); LBMat = -UBMat;
+UBMat(1,evenInds) = stanceLegBaseXY(1,evenInds) - (params.l(1) + params.l(1)); % not below body
+LBMat(1,oddInds) = stanceLegBaseXY(1,oddInds) +  (params.l(1) + params.l(1));  % not below body
+UBMat(1,oddInds) = .35+.05; % not too far out 
+LBMat(1,evenInds) = -.35-.05; % not too far out 
 
-% bounds for the transformation
-transformUBMat = zeros(size( transformMat0));
-transformLBMat = zeros(size( transformMat0));
-% first row: thetaX
-transformUBMat(1,:) = pi/4;
-transformLBMat(1,:) = -pi/4;
-% second row: thetaY
-transformUBMat(2,:) = pi/8;
-transformLBMat(2,:) = -pi/8;
-% third row: rB_P x
-transformUBMat(3,:) = params.W/8; % was /4
-transformLBMat(3,:) = -params.W/8; % was /4
-% fourth row: rB_P y
-transformUBMat(4,:) = params.L/4; % was /4
-transformLBMat(4,:) = -params.L/4; % was /4
-% fifth row: rB_P z
-transformUBMat(5,:) = .35;
-transformLBMat(5,:) = .10;
-
-UB = [reshape(footUBMat, [1 2*nStanceLegs]) transformUBMat(:).'];
-LB = [reshape(footLBMat, [1 2*nStanceLegs]) transformLBMat(:).'];
+% give a smaller limit on the x direction tilt than the y direction.
+planeUB = [ .02 .6 .25];
+planeLB = [-.02 -.6 .05];
+UB = [reshape(UBMat, [1 2*nStanceLegs]) planeUB];
+LB = [reshape(LBMat, [1 2*nStanceLegs]) planeLB];
 % linear ineq constraints: the front legs are in front of the back legs, etc.
-A = zeros(length(oddInds)-1 + length(evenInds)-1 + nPhases*2, length(UB));
+A = zeros(length(oddInds)-1 + length(evenInds)-1, length(UB));
 for i = 1:length(oddInds)-1
 A(i,oddInds(i)*2) = -1;
 A(i,oddInds(i+1)*2) = 1;
@@ -178,43 +162,18 @@ for i = 1:length(evenInds)-1
 A(i+length(oddInds)-1,evenInds(i)*2) = -1;
 A(i+length(oddInds)-1,evenInds(i+1)*2) = 1;
 end
-% linear ineq constraints: the difference between each tilt value is not
-% too big.
-a = zeros(nPhases/2, length(transforms)); 
-a(1,1) = 1; a(1,6) = -1;
-for k= 2:nPhases/2
-  a(k,:)=   circshift( a(k-1,:), [2 5]);
-end
-a2 = circshift(a,[0 1]);
-A(((length(oddInds)-1 + length(evenInds)-1)+1) :end, 2*nStanceLegs+1:end)=...
-[a; -a; a2; -a2];
-
-B = zeros(length(oddInds)-1 + length(evenInds)-1 + nPhases*2,1);
-B(1:(length(oddInds)-1 + length(evenInds)-1))= -.05; % foot overlap in plane
- % max difference in angle between phases:
-B( (length(oddInds)-1 + length(evenInds)-1+1) : end) = pi/6;
-
+B = ones(length(oddInds)-1 + length(evenInds)-1 ,1) * -.05; % -.1 works
 Aeq = []; % linear eq constraints
 Beq = [];
 options = optimset('TolCon', 1e-3, 'TolFun', 1e-3, 'MaxFunEvals', 10000 );
-% options = optimset('TolCon', 1e-5, 'TolFun', 1e-5, 'MaxFunEvals', 5000 );
-% options = optimset('TolCon', 1e-7, 'TolFun', 1e-7, 'MaxFunEvals', 5000 );
+costFun = @costWalk3w;
+nonlinconFun = @nonlinconWalk3w;
 
-costFun = @costWalk7;
-nonlinconFun = @nonlinconWalk7;
-
-plt = SnakeMonsterPlotter(); 
+ plt = SnakeMonsterPlotter('gripper',1); 
 
 %% the big optimization
 evals = 0; % number of evaluations of cost function
  stateOpt = fmincon(costFun,state0,A,B,Aeq,Beq,LB,UB,nonlinconFun,options);
-
-%  % use CMA-ES
-% opts.LBounds = LB.';
-% opts.UBounds = UB.';
-% opts.TolFun = 1e-3; % lower function change threshold so that the program actually ends eventually
-% sigma = (UB-LB/2).'; sigma(sigma>10) = 1;
-% stateOpt = cmaes('costWalk7cmaes', state0, sigma, opts); 
-
+%  stateOpt = simulannealbnd(@costWalk1,state0,LB,UB);
  
-runResults;
+plotOptResultsWeighted;

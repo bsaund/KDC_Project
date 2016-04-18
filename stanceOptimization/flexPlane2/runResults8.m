@@ -59,7 +59,7 @@ t_span = zeros(1,length(t_span1)*2);
 t_span(1:2:end) = t_span1;
 t_span(2:2:end) = t_span2;
 
-% t_span = linspace(0,2*pi*nCycles,nWaypoints*nCycles);
+t_span = linspace(0,2*pi*nCycles,nWaypoints*nCycles);
 
 dt = (2*pi*nCycles-0)/(nWaypoints*nCycles-1);
 
@@ -70,9 +70,25 @@ jerkCoeffs = minimumJerk( 0, 0, 0, ... % Starting Phase/Vel/Accel
     stepPeriod);  % Time to touchdown
 stepWayPoints = [-a_back*stepDirVector.';  0 0 b; a_forward*stepDirVector.'];
 
-% make pattern:  1     2     2     3     3     4     4     5     5     1
-transformPhaseOrder = circshift(ceil((1:nPhases)/2),[1 -1]);
-transformsMat = reshape(transforms, [5 nPhases/2]);
+% make pattern: [ 1   2   3  3   4   5   5   6  7 7  8 9 9  10 1 ]
+% % pattern = zeros(1,nPhases);
+% % pattern(1:3:end) = 1:2:(nPhases/nStanceLegs*3);
+% % pattern(2:3:end) = 1:2:(nPhases/nStanceLegs*3);
+% % pattern(3:3:end) = 2:2:(nPhases/nStanceLegs*3+1);
+% % transformPhaseOrder = circshift(pattern,[1 -1]);
+% % transformsMat = reshape(transforms, [5 nPhases*2/3]);
+
+% make pattern: [ 1   2   3  3   4   5   5   6  7 7  8 9 9  10 1 ]
+pattern = zeros(1,nPhases);
+pattern(1:3:end) = 1:2:(nPhases/nStanceLegs*3-1);
+pattern(2:3:end) = 1:2:(nPhases/nStanceLegs*3-1);
+pattern(3:3:end) = 2:2:(nPhases/nStanceLegs*3);
+transformPhaseOrder = circshift(pattern,[1 -1]);
+transformsMat = reshape(transforms, [5 nPhases*2/3]);
+
+
+
+phaseTimes = (0:2*pi/nStanceLegs/2:2*pi); % the times for interpolation.
 
 
 
@@ -92,7 +108,7 @@ for t = t_span
     
     % transform points to the Body frame
     % use interpolation from matrix
-       transformNow = interp1((0:2*pi/nStanceLegs:2*pi),transformsMat(:,[1:end, 1]).',...
+       transformNow = interp1(phaseTimes,transformsMat(:,[1:end, 1]).',...
            mod(t,2*pi), 'spline').';
 %        transformNow = interp1((0:2*pi/nStanceLegs:2*pi),transformsMat(:,[1:end, 1]).',...
 %            mod(t,2*pi)).';

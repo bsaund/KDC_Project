@@ -22,17 +22,22 @@ xyz(:,extraLegs) =xyzExtra;
    
 % get the COM:
  bodyCoM = kin.getSnakeMonsterCoM(thIK);
+ % adjust CoM to take an extra weight 
+fullCoM = (bodyCoM*(sum(sum(masses))+2.37) + extraMass*extraMassXYZ )...
+    /(sum(sum(masses))+2.37 + extraMass);
+
+ 
  % project it onto the plane:
 % difference between origins of plane and point
 % dp = bsxfun(@minus, origins, point);
-dp = [0; 0; -planexyc(3)] - bodyCoM;
+dp = [0; 0; -planexyc(3)] - fullCoM;
 % relative position of point on normal's line
 % t = bsxfun(@rdivide, sum(bsxfun(@times,normals,dp),2), sum(normals.^2,2));
 normals = [planexyc(1); planexyc(2); 1];
 temp = sum(normals.*dp)/sum(normals.^2);
 % add relative difference to project point back to plane
 % projBodyCoM = bsxfun(@plus, point, bsxfun(@times, t, normals));
-projBodyCoM = bodyCoM + temp*normals;
+projBodyCoM = fullCoM + temp*normals;
 
 % %  the support polygon
  xyzContact = xyz(:,stanceLegs);

@@ -1,7 +1,7 @@
-function  [ineqViolations,eqViolations]=nonlinconWalk7(state)
+function  [ineqViolations,eqViolations]=nonlinconWalk8(state)
 % nonlinear constriants
 % C(X) <= 0
-global  xyzExtra stanceLegs extraLegs   stanceLegBaseXY A kin
+global  xyzExtra stanceLegs extraLegs   A kin
 global stepDirection phasesToTest stepOrder stepLength nLegs
 nStanceLegs = length(stanceLegs);
 
@@ -19,7 +19,6 @@ stepDirVector = R_z(stepDirection)*[0;1;0];
 
 
 %% For each of the phasesToTest evaluate a cost of projectedCoM and distance
-% from centroid. Add them up.
 % Harshly penalize being outside the polygon
 
 
@@ -44,19 +43,22 @@ ineqViolationsMat1 =[]; ineqViolationsMat2=[];
 oddInds =find(mod(stanceLegs,2)==1); % the indexes of the odd legs in stanceLegs
 evenInds= find(mod(stanceLegs,2)==0);
 
-ineqViolationsMat3 = zeros(length(oddInds)-1 + length(evenInds)-1, nPhases/2); % for foot overlap
-ineqViolationsMat4 = zeros(nStanceLegs ,nPhases/2); % for max foot height
-ineqViolationsMat5 = zeros(nStanceLegs ,nPhases/2); % for FK matching
+ineqViolationsMat3 = zeros(length(oddInds)-1 + length(evenInds)-1, nPhases*2/3); % for foot overlap
+ineqViolationsMat4 = zeros(nStanceLegs ,nPhases); % for max foot height
+ineqViolationsMat5 = zeros(nStanceLegs ,nPhases); % for FK matching
 
 xyz0 = xyz;
-% make pattern:  1     2     2     3     3     4     4     5     5     1
-transformPhaseOrder = circshift(ceil((1:nPhases)/2),[1 -1]);
-transformsMat = reshape(transforms, [5 nPhases/2]);
+% make pattern: [ 1   2   3  3   4   5   5   6  7 7  8 9 9  10 1 ]
+pattern = zeros(1,nPhases);
+pattern(1:3:end) = 1:2:(nPhases/nStanceLegs*3-1);
+pattern(2:3:end) = 1:2:(nPhases/nStanceLegs*3-1);
+pattern(3:3:end) = 2:2:(nPhases/nStanceLegs*3);
+transformPhaseOrder = circshift(pattern,[1 -1]);
+transformsMat = reshape(transforms, [5 nPhases*2/3]);
+transformsMat = reshape(transforms, [5 nPhases*2/3]);
 
-Rmax = .2;
-Rmin = .1;
 
-for k = 1:nPhases/2
+for k = 1:nPhases
     
     % current xyz: move feet to position in the phase. In plane.
     for i = 1:nStanceLegs
@@ -65,40 +67,27 @@ for k = 1:nPhases/2
 %             (a_forward + a_back)*stepDirVector*...
 %             (phasesToTest(k*2-1,i)/(2*pi - 2*pi*fractionStep) - 2*pi*fractionStep/(2*pi - 2*pi*fractionStep)).'...
 %             + xyz0(:,leg);    
-          xyz(:,leg) = minJerkStepGait3(stepWayPoints, jerkCoeffs, xyz0(:,leg), eye(3), fractionStep, phasesToTest(k*2-1,i));
+          xyz(:,leg) = minJerkStepGait3(stepWayPoints, jerkCoeffs, xyz0(:,leg), eye(3), fractionStep, phasesToTest(k,i));
     end
     
     % find the positions of the feet in the body frame.
     % transformation of Body viewed from Plane
-    rB_P = transformsMat(3:end, k); % vector of B wrt P,
+    rB_P = transformsMat(3:end, transformPhaseOrder(k)); % vector of B wrt P,
     % (body frame wrt plane origin)
-    thetaX = transformsMat(1, k);
-    thetaY = transformsMat(2, k);
+    thetaX = transformsMat(1, transformPhaseOrder(k));
+    thetaY = transformsMat(2, transformPhaseOrder(k));
     RB_P = R_y(thetaY)*R_x(thetaX); % rotation of the frame B wrt P frame
     % (body frame coordinate system as viewed in plane frame)
     TB_P = [RB_P rB_P; 0 0 0 1]; % transformation to the body frame from the plane frame
     TP_B = inv(TB_P);
     xyzBh = TP_B*[xyz; ones(1,nLegs)];
     xyzBContact =xyzBh(1:3,stanceLegs);
-    
-    % % make sure the foot posiitons are in a sphere around the joint
-% %     for j = 1:nStanceLegs
-% %         dFromBody = xyzBContact(:,j) - [stanceLegBaseXY(:,j); 0 ];
-% %         % make sure the xyz positions stay within a circle of the base
-% %         % dist <= Rmax --> dist - Rmax <=0
-% %         ineqViolationsMat1(j,k) =...
-% %             dFromBody.'*dFromBody - Rmax^2;
-% %         % make sure the xyz positions are not too close
-% %         % % dist >= Rmin --> Rmin - dist <=0
-% %         ineqViolationsMat2(j,k) =...
-% %             Rmin^2 -  dFromBody.'*dFromBody;
-% %     end
-    
+
     % make sure the legs don't overlap
     % penalize having a foot in front of another during the gait
     xyStepT = reshape(xyz(1:2,stanceLegs), [1,2*nStanceLegs]);
     footOverlap= A(1:length(oddInds)-1 + length(evenInds)-1 ,:)...
-        *[xyStepT zeros(1,5*nPhases/2)].';
+        *[xyStepT zeros(1,5*nPhases*2/3)].';
     ineqViolationsMat3(:,k) = footOverlap + .05; % min foot separation
     
     % disallow the feet to go over the body.

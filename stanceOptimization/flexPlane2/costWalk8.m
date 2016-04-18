@@ -1,7 +1,8 @@
-function f = costWalk7(state)
+function f = costWalk8(state)
 
 global kin xyzExtra stanceLegs extraLegs  plt A evals nLegs
-global stepDirection phasesToTest swingAtPhasesToTest stepOrder stepLength
+global stepDirection phasesToTest swingAtPhasesToTest stepOrder stepLength stepHeight
+
 nStanceLegs = length(stanceLegs);
 
 xyStep = state(1:2*nStanceLegs);
@@ -24,7 +25,7 @@ stepDirVector = R_z(stepDirection)*[0;1;0];
 
 a_forward = stepLength/2; % params.L/3
 a_back = stepLength/2; % step length = a_forward  + a_back
-b = .06; % step height = b. .06 works.
+b = stepHeight; % step height = b. .06 works.
 
 fractionStep = 1/nStanceLegs;
 stepPeriod = 2*pi*fractionStep;  % how long the stepping lasts
@@ -37,9 +38,16 @@ stepWayPoints = [-a_back*stepDirVector.';  0 0 b; a_forward*stepDirVector.'];
 nPhases = size(phasesToTest,1);
 costPhases = zeros(1,nPhases);
 xyz0 = xyz;
+% make pattern: [ 1   2   3  3   4   5   5   6  7 7  8 9 9  10 1 ]
+pattern = zeros(1,nPhases);
+pattern(1:3:end) = 1:2:(nPhases/nStanceLegs*3-1);
+pattern(2:3:end) = 1:2:(nPhases/nStanceLegs*3-1);
+pattern(3:3:end) = 2:2:(nPhases/nStanceLegs*3);
+
 % make pattern:  1     2     2     3     3     4     4     5     5     1
-transformPhaseOrder = circshift(ceil((1:nPhases)/2),[1 -1]);
-transformsMat = reshape(transforms, [5 nPhases/2]);
+transformPhaseOrder = circshift(pattern,[1 -1]);
+transformsMat = reshape(transforms, [5 nPhases*2/3]);
+
 
 for k = 1:nPhases
     

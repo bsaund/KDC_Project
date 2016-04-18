@@ -14,7 +14,7 @@ addpath(genpath('C:\Users\medgroup01\Documents\Julian\snakeMonster\KDC_Project')
 
 global kin params plt A evals
 global xyzExtra nLegs stanceLegs extraLegs stepOrder  stanceLegBaseXY
-global stepDirection stepLength phasesToTest swingAtPhasesToTest
+global stepDirection stepLength stepHeight phasesToTest swingAtPhasesToTest
 % stuff to set by hand:
 stanceLegs = [ 3 4 5 6]; % array of legs that are in the air, stretched out far
 
@@ -28,6 +28,7 @@ stepDirection = 0; % the heading for the steps in terms of the body frame.
 % 0 is straight ahead, pi/2 is walking right, etc.
 stepDirection = mod(stepDirection,2*pi);
 stepLength = .1; % .1 ok. .15 good for 5 legs.
+stepHeight = .06;
 
 % walking states: which legs are walking, swinging, extra.
 fractionStep = 1/nStanceLegs;
@@ -55,33 +56,43 @@ end
 
 %% identify the phases (out of 2pi) in a gait cycle that are of interest
 % when the foot has just lifted, and when it is about to set down.
+% added: in the middle of the swing.
 % this is the problem: find tfoot1,2 s.t.:
 % t0 + tfoot1 = 0, and mod(t0 + tfoot2,2*pi) = 2*pi*fractionStep, where
 % t0 = 2*pi/nStanceLegs*(nStanceLegs:-1:1); the starting phases.
 phase0 = mod(2*pi/nStanceLegs*(nStanceLegs:-1:1),2*pi);
 swingPhaseLength = 2*pi/nStanceLegs;
-% swing legs:   t0: 1 0 0 0 0 (first just took off)
-%  t0 + 1*2*pi/nStanceLegs: 1 0 0 0 0 (first is about to land)
-%  t0 + 1*2*pi/nStanceLegs: 0 1 0 0 0 (second just took off)
-%  t0 + 2*2*pi/nStanceLegs: 0 1 0 0 0 (second about to land)
-%  t0 + 2*2*pi/nStanceLegs: 0 0 1 0 0 (third just took off)
-%  t0 + 3*2*pi/nStanceLegs: 0 0 1 0 0 (third about to land)
-%  t0 + 3*2*pi/nStanceLegs: 0 0 0 1 0 (fourth just took off)
-%  t0 + 4*2*pi/nStanceLegs: 0 0 0 1 0 (fourth about to land)
-%  t0 + 4*2*pi/nStanceLegs: 0 0 0 0 1 (fifth just took off)
-%  t0 + 5*2*pi/nStanceLegs: 0 0 0 0 1 (fifth about to land)
-phasesToTest = zeros(2*nStanceLegs, nStanceLegs);
-swingAtPhasesToTest = zeros(2*nStanceLegs, nStanceLegs);
+% swing legs:  
+%  t0:                        1 0 0 0 0 (first just took off)
+%  t0 + .5*2*pi/nStanceLegs:  1 0 0 0 0 (first in flight)
+%  t0 + 1*2*pi/nStanceLegs:   1 0 0 0 0 (first is about to land)
+%  t0 + 1*2*pi/nStanceLegs:   0 1 0 0 0 (second just took off)
+%  t0 + 1.5*2*pi/nStanceLegs: 0 1 0 0 0 (second in flight)
+%  t0 + 2*2*pi/nStanceLegs:   0 1 0 0 0 (second about to land)
+%  t0 + 2*2*pi/nStanceLegs:   0 0 1 0 0 (third just took off)
+%  t0 + 2.5*2*pi/nStanceLegs: 0 0 1 0 0 (third in flight)
+%  t0 + 3*2*pi/nStanceLegs:   0 0 1 0 0 (third about to land)
+%  t0 + 3*2*pi/nStanceLegs:   0 0 0 1 0 (fourth just took off)
+%  t0 + 3.5*2*pi/nStanceLegs: 0 0 0 1 0 (fourth in flight)
+%  t0 + 4*2*pi/nStanceLegs:   0 0 0 1 0 (fourth about to land)
+%  t0 + 4*2*pi/nStanceLegs:   0 0 0 0 1 (fifth just took off)
+%  t0 + 4.5*2*pi/nStanceLegs: 0 0 0 0 1 (fifth in flight)
+%  t0 + 5*2*pi/nStanceLegs:   0 0 0 0 1 (fifth about to land)
+phasesToTest = zeros(3*nStanceLegs, nStanceLegs);
+swingAtPhasesToTest = zeros(3*nStanceLegs, nStanceLegs);
 % being lazy for now, fill with a for loop. 
 for k = 1:nStanceLegs
-   swingAtPhasesToTest(2*k-1:2*k,k) = 1;    
+   swingAtPhasesToTest(3*k-2:3*k,k) = 1;    
 end
-phasesToTest(1,:) = phase0;%+.01;
-phasesToTest(end,:) = phase0;%-.01;
+phasesToTest(1,:) = phase0;
 for k = 1:nStanceLegs-1
-   phasesToTest(2*k,:)  = phase0 + k*swingPhaseLength;% +.01;
-   phasesToTest(2*k+1,:)= phase0 + k*swingPhaseLength;% -.01;
+   phasesToTest(3*k-1,:)  = phase0 + (k-.5)*swingPhaseLength;
+   phasesToTest(3*k,:)  = phase0 + k*swingPhaseLength;
+   phasesToTest(3*k+1,:)= phase0 + k*swingPhaseLength;
 end
+phasesToTest(end-1,:) = phase0+ (nStanceLegs-.5)*swingPhaseLength;
+phasesToTest(end,:) = phase0;
+
 phasesToTest = mod(phasesToTest, 2*pi);
 nPhases = size(phasesToTest,1);
 
@@ -124,7 +135,7 @@ xyStep0 = reshape(xyz0(1:2,stanceLegs), [1, 2*nStanceLegs]); % initial value: al
 thetaX = 0;
 thetaY = 0;
 rB_P = [0;0; .2];
-transformMat0 = repmat([thetaX; thetaY; rB_P], [1,nPhases/2] );
+transformMat0 = repmat([thetaX; thetaY; rB_P], [1,nPhases*2/3] );
 % EACH column is values at a phase to test 
 transforms = transformMat0(:);
 
@@ -169,7 +180,7 @@ transformLBMat(5,:) = .10;
 UB = [reshape(footUBMat, [1 2*nStanceLegs]) transformUBMat(:).'];
 LB = [reshape(footLBMat, [1 2*nStanceLegs]) transformLBMat(:).'];
 % linear ineq constraints: the front legs are in front of the back legs, etc.
-A = zeros(length(oddInds)-1 + length(evenInds)-1 + nPhases*2, length(UB));
+A = zeros(length(oddInds)-1 + length(evenInds)-1 + nPhases*2/3*4, length(UB));
 for i = 1:length(oddInds)-1
 A(i,oddInds(i)*2) = -1;
 A(i,oddInds(i+1)*2) = 1;
@@ -180,16 +191,16 @@ A(i+length(oddInds)-1,evenInds(i+1)*2) = 1;
 end
 % linear ineq constraints: the difference between each tilt value is not
 % too big.
-a = zeros(nPhases/2, length(transforms)); 
+a = zeros(nPhases*2/3, length(transforms)); 
 a(1,1) = 1; a(1,6) = -1;
-for k= 2:nPhases/2
+for k= 2:nPhases*2/3
   a(k,:)=   circshift( a(k-1,:), [2 5]);
 end
 a2 = circshift(a,[0 1]);
 A(((length(oddInds)-1 + length(evenInds)-1)+1) :end, 2*nStanceLegs+1:end)=...
 [a; -a; a2; -a2];
 
-B = zeros(length(oddInds)-1 + length(evenInds)-1 + nPhases*2,1);
+B = zeros(length(oddInds)-1 + length(evenInds)-1 + nPhases*2/3*4,1);
 B(1:(length(oddInds)-1 + length(evenInds)-1))= -.05; % foot overlap in plane
  % max difference in angle between phases:
 B( (length(oddInds)-1 + length(evenInds)-1+1) : end) = pi/6;
@@ -200,8 +211,8 @@ options = optimset('TolCon', 1e-3, 'TolFun', 1e-3, 'MaxFunEvals', 10000 );
 % options = optimset('TolCon', 1e-5, 'TolFun', 1e-5, 'MaxFunEvals', 5000 );
 % options = optimset('TolCon', 1e-7, 'TolFun', 1e-7, 'MaxFunEvals', 5000 );
 
-costFun = @costWalk7;
-nonlinconFun = @nonlinconWalk7;
+costFun = @costWalk8;
+nonlinconFun = @nonlinconWalk8;
 
 plt = SnakeMonsterPlotter(); 
 
@@ -217,4 +228,4 @@ evals = 0; % number of evaluations of cost function
 % stateOpt = cmaes('costWalk7cmaes', state0, sigma, opts); 
 
  
-runResults;
+runResults8;

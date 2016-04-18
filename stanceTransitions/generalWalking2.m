@@ -9,7 +9,7 @@
 sendCommands = 1; % 1 to turn on commands to real robot
 logging = 0; % Writes a hebi log
 plotting = 0;
-withClaw = 1;
+withClaw = 0;
 close all; clc;
 addpath(genpath('C:\Users\medgroup01\Documents\Julian\snakeMonster\KDC_Project'));
 joy = vrjoystick(1);
@@ -36,12 +36,14 @@ end
 % load('C:\Users\medgroup01\Documents\Julian\snakeMonster\KDC_Project\stanceOptimization\findXYZOptWalkTilt\fourLegOk4_11_4pm.mat');
 % load('C:\Users\medgroup01\Documents\Julian\snakeMonster\KDC_Project\stanceOptimization\findXYZOptWalkTilt\fiveLegGreat4_6_10am.mat');
 % load('C:\Users\medgroup01\Documents\Julian\snakeMonster\KDC_Project\stanceOptimization\findXYZOptWalkTilt\sixLegGood4_6_10am.mat');
-load('C:\Users\medgroup01\Documents\Julian\snakeMonster\KDC_Project\stanceOptimization\findXYZOptWalkTilt\fiveLegLongStep4_12_3pm.mat');
+% load('C:\Users\medgroup01\Documents\Julian\snakeMonster\KDC_Project\stanceOptimization\findXYZOptWalkTilt\fiveLegLongStep4_12_3pm.mat');
 
 
     if withClaw
+        load('C:\Users\medgroup01\Documents\Julian\snakeMonster\KDC_Project\stanceOptimization\findXYZOptWalkTilt\fiveLegClawGood4_14_11am.mat');
         plt = SnakeMonsterPlotter('gripper', 1);
     else
+        load('C:\Users\medgroup01\Documents\Julian\snakeMonster\KDC_Project\stanceOptimization\findXYZOptWalkTilt\fiveLegLongStep4_12_3pm.mat');
         plt = SnakeMonsterPlotter;
     end
 
@@ -240,6 +242,7 @@ stepWayPoints = [-aBack*stepDirOnPlane.';  0 0 stepHeight; aForward*stepDirOnPla
     J = kin.getLegJacobians(thIK);
     % gravity compensation torques: (assumes fixed base)
     legTorques = kin.getLegGravCompTorques(thIK, gravity);
+    legTorques = legTorques(1:3, :);
     % the force on each foot is the chassis weight plus the fixed module
     % segments, in the direction opposite gravity, divided with pinv
     xyzContact = xyzFK(:,~swingLegs);
