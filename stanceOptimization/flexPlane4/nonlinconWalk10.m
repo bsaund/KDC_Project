@@ -2,8 +2,11 @@ function  [ineqViolations,eqViolations]=nonlinconWalk10(state)
 % nonlinear constriants
 % C(X) <= 0
 global   stanceLegs    A kin  xyzExtra  extraLegs  swingAtPhasesToTest
-global stepDirection phasesToTest stepOrder stepLength nLegs
+global stepDirection phasesToTest stepOrder stepLength nLegs test
 nStanceLegs = length(stanceLegs);
+
+% test = state;
+
 
 xyStep = state(1:2*nStanceLegs);
 transforms = state(2*nStanceLegs+1:end);
@@ -92,7 +95,7 @@ for k = 1:nPhases
     xyzContactRot = xyz(:,currentStanceLegs);
     K = convhull(xyzContactRot(1:2,:).');
     xOrderedRot = xyzContactRot(:,K.');
-    xOrdered = TP_B*[xOrderedRot; ones(1, size(xOrderedRot,2))];
+%     xOrdered = TP_B*[xOrderedRot; ones(1, size(xOrderedRot,2))];
     %     xCentroid = mean(xOrdered(:,1:end-1),2);
     projBodyCoMRot = TB_P*[projBodyCoM;1];
     distToLine = p_poly_dist(projBodyCoMRot(1),projBodyCoMRot(2), xOrderedRot(1,:) ,xOrderedRot(2,:),  1);

@@ -16,11 +16,12 @@ addpath(genpath('C:\Users\medgroup01\Documents\Julian\snakeMonster\KDC_Project')
 % addpath(genpath('C:\Users\Julian\Box Sync\CMU sem 1+2\snakeMonster\KDC_project'));
 
 
-global kin params plt A evals
+global kin params plt A evals test
 global xyzExtra nLegs stanceLegs extraLegs stepOrder  stanceLegBaseXY
 global stepDirection stepLength phasesToTest swingAtPhasesToTest
 % stuff to set by hand:
 stanceLegs = [ 3 4 5 6]; % array of legs that are in the air, stretched out far
+% stanceLegs = [ 1 2 5 6]; % array of legs that are in the air, stretched out far
 
 
 %% sorting and making leg arrays
@@ -38,12 +39,13 @@ fractionStep = 1/nStanceLegs;
 if nStanceLegs ==5
 stepOrderBase = [1 3 4 2 6 5]; % works best for leg 1 up
 else
-   stepOrderBase = [1 2 6 4 5 3]; % works ok
+   stepOrderBase = [  6 4 2 5 3 1]; % works good
 %    stepOrderBase = [1 2 5 3 6 4 ]; % works ok (symmetric)
 %    stepOrderBase = [1 2 6 3 5 4]; %  no good
 %    stepOrderBase = [1 2 6 5 4 3]; %  nope
 %       stepOrderBase = [1 2 6 5 3 4 ]; %  nah
 %    stepOrderBase = [1 2 5 3 6 4 ]; % not so great
+%    stepOrderBase = [1 2 4 3 6 5 ]; % 
 end
 stepOrder = [];
 extraLegs = [];
@@ -116,7 +118,7 @@ xyStep0 = reshape(xyz0(1:2,stanceLegs), [1, 2*nStanceLegs]); % initial value: al
 % (leave yaw = 0 for now)
 % rB_P at each step (all three components)
 % foot pose x y in plane at t=0
-thetaX = pi/8;
+thetaX = 0;
 thetaY = 0;
 rB_P = [0;0; .2];
 transformMat0 = repmat([thetaX; thetaY; rB_P], [1,nPhases] );
@@ -136,7 +138,7 @@ transforms = transformMat0(:);
 stanceLegBaseXY = legBaseXY(:, stanceLegs);
 oddInds =find(mod(stanceLegs,2)==1); % the indexes of the odd legs in stanceLegs
 evenInds= find(mod(stanceLegs,2)==0);
-footUBMat = Inf(2,nStanceLegs); footLBMat = -footUBMat;
+footUBMat = ones(2,nStanceLegs)*10; footLBMat = -footUBMat;
 footUBMat(1,evenInds) = stanceLegBaseXY(1,evenInds) - (params.l(1) + params.l(1)); % not below body
 footLBMat(1,oddInds) = stanceLegBaseXY(1,oddInds) +  (params.l(1) + params.l(1));  % not below body
 footUBMat(1,oddInds) = .35+.05; % not too far out 
@@ -187,18 +189,21 @@ A(((length(oddInds)-1 + length(evenInds)-1)+1) :end, 2*nStanceLegs+1:end)=...
 B = zeros(length(oddInds)-1 + length(evenInds)-1 + nPhases*4,1);
 B(1:(length(oddInds)-1 + length(evenInds)-1))= -.05; % foot overlap in plane
  % max difference in angle between phases:
-B( (length(oddInds)-1 + length(evenInds)-1+1) :5: end) = pi/4;
-B( (length(oddInds)-1 + length(evenInds)-1+1)+1 :5: end) = pi/8;
+ startInd = (length(oddInds)-1 + length(evenInds)-1);
+B( startInd+[1:4]) = pi/4; % + thx
+B( startInd+[5:8]) = pi/4; % - thx
+B( startInd+[9:12]) = pi/8; % + thy
+B( startInd+[13:6]) = pi/8; % + thy
 % % distance differences:
-B( (length(oddInds)-1 + length(evenInds)-1+1)+2 :5: end) = params.W; % x
-B( (length(oddInds)-1 + length(evenInds)-1+1)+3 :5: end) = params.L; % y
-B( (length(oddInds)-1 + length(evenInds)-1+1)+4 :5: end) = params.W; % z
+% B( (length(oddInds)-1 + length(evenInds)-1+1)+2 :5: end) = params.W/2; % x
+% B( (length(oddInds)-1 + length(evenInds)-1+1)+3 :5: end) = params.L/2; % y
+% B( (length(oddInds)-1 + length(evenInds)-1+1)+4 :5: end) = params.W/2; % z
 
 
 
 Aeq = []; % linear eq constraints
 Beq = [];
-options = optimset('TolCon', 1e-5, 'TolFun', 1e-5, 'MaxFunEvals', 5000 );
+options = optimset('TolCon', 1e-4, 'TolFun', 1e-4, 'MaxFunEvals', 10000 );
 % options = optimset('TolCon', 1e-5, 'TolFun', 1e-5, 'MaxFunEvals', 5000 );
 % options = optimset('TolCon', 1e-7, 'TolFun', 1e-7, 'MaxFunEvals', 5000 );
 
@@ -209,6 +214,7 @@ plt = SnakeMonsterPlotter();
 
 %% the big optimization
 evals = 0; % number of evaluations of cost function
+% dbstop if naninf
  stateOpt = fmincon(costFun,state0,A,B,Aeq,Beq,LB,UB,nonlinconFun,options);
 
  save('lastResults.mat');

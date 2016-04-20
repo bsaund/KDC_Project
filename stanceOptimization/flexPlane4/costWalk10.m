@@ -87,7 +87,7 @@ for k = 1:nPhases
     
     % add this cost to the cost matrix, which will be summed at the end
 %  costPhases(k) = 10*heaviside((distToLine+.05))*((distToLine+.05)*500)^2; % ?
- costPhases(k) = 10*heaviside((distToLine+.06))*((distToLine+.06)*500)^2; % ?  
+ costPhases(k) = heaviside((distToLine+.06))*((distToLine+.06)*500)^2; % ?  
  
 %     disp(heaviside((distToLine+.02))*((distToLine+.02)*500)^2)
 %    xyzCentroid = mean(xyzContactRot,2);
@@ -104,7 +104,7 @@ for k = 1:nPhases
     % includes the distance to i to i.
     % pointDistCost = 1000*sigmf(-dEven+.04,[100 0]);
 %     pointDistCostEven =heaviside(-(dEven-.06)).*10000.*(dEven-.06).^2;
-    pointDistCostEven =heaviside(-(dEven-.06)).*1000.*(dEven-.06).^2;
+    pointDistCostEven =heaviside(-(dEven-.06)).*100.*(dEven-.06).^2;
     pointDistCostEven(1:sizeCoMs(3)*sizeCoMs(2)+1:end) = 0; % don't penalize the link being itself!
     costPhases(k) =  costPhases(k) ...
         + sum(sum(pointDistCostEven));
@@ -118,7 +118,7 @@ for k = 1:nPhases
     % includes the distance to i to i.
     % pointDistCost = 1000*sigmf(-dOdd+.04,[100 0]);
 %     pointDistCostOdd =heaviside(-(dOdd-.06)).*10000.*(dOdd-.06).^2;
-    pointDistCostOdd =heaviside(-(dOdd-.06)).*1000.*(dOdd-.06).^2;
+    pointDistCostOdd =heaviside(-(dOdd-.06)).*100.*(dOdd-.06).^2;
     pointDistCostOdd(1:sizeCoMs(3)*sizeCoMs(2)+1:end) = 0; % don't penalize the link being itself!
     costPhases(k) =  costPhases(k) ...
         + sum(sum(pointDistCostOdd));
@@ -138,7 +138,12 @@ end
 f = sum(costPhases);
 
 % add a small cost for big deviations from the center, but not z.
-f = f + sum(sum(transformsMat(1:4,:).^2))*100;
+f = f + sum(sum(transformsMat(1:4,:).^2))*50;
+
+% add a cost to large differences in transforms
+transitionDiffs =  diff([transformsMat, transformsMat(:,1)],1,2);
+f = f+ sum(sum(transitionDiffs.^2))*200; % *10 worked well. 200 good too.
+
 
 evals = evals + 1;
 

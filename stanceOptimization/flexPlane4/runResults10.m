@@ -3,7 +3,7 @@ addpath(genpath('C:\Users\Julian\Box Sync\CMU sem 1+2\snakeMonster\KDC_project')
 addpath(genpath('C:\Users\medgroup01\Documents\Julian\snakeMonster\KDC_Project'));
 
 sendCommands = 0;
-
+makeVideo = 1; % video recording flag
 nCycles = 1;
 
 % initialize robot
@@ -22,12 +22,6 @@ if ~sendCommands
    close all;
    setupPlot;
 
-% plt = SnakeMonsterPlotter();
-% set(gcf, 'position', [10 100 700 700]);
-% plt.plot(zeros(1,18)); hold on;
-% projectedCOM = scatter3(0,0,0,'k', 'filled');
-% supportLines = plot3(0,0,0,'k');
-% planeArrow = quiver3(0,0,0,0,0,0,'b');
 end
 
 kin = SnakeMonsterKinematics();
@@ -52,7 +46,7 @@ fractionStep = 1/nStanceLegs;
 swingLegs = zeros(1,6); % 1 indicates leg is in the air
 swingLegs(extraLegs) = 2;
 
-nWaypoints = 50;
+nWaypoints = 100;
 if sendCommands
     nWaypoints = 50;
 end
@@ -79,20 +73,33 @@ transformsTable(2:2:end,:) = transformsMatT;
 % transformsTable = circshift(transformsTable, 1);
 transformsTable = circshift(transformsTable, -1);
 transformsTable = [transformsTable(end,:); transformsTable];
-timesList = (0:nPhases*2).';
+% timesList = (0:nPhases*2).';
+timesList = zeros(2*nPhases+1, 1);
+for i = 1:nPhases
+    timesList(2*i) = timesList(2*i-1) + 1;
+    timesList(2*i+1) = timesList(2*i) + .5;
+end
+    
 stuff = [timesList nan(nPhases*2+1,1) phasesTable nan(nPhases*2+1,1) transformsTable];
 
-t_span0 = [0:1:(nPhases+1)];
-t_span = zeros(1,length(t_span0)*3-2);
-t_span(1:3:end) = t_span0;
-t_span(3:3:end) = t_span0(2:end)-.01;
-t_span(2:3:end) = t_span0(1:end-1)+.01;
+% t_span0 = [0:1:(nPhases+1)];
+% t_span = zeros(1,length(t_span0)*3-2);
+% t_span(1:3:end) = t_span0;
+% t_span(3:3:end) = t_span0(2:end)-.01;
+% t_span(2:3:end) = t_span0(1:end-1)+.01;
 
+t_span = linspace(0,timesList(end), nWaypoints);
 
-
+dateString = datestr(now);
+dateString = strrep(dateString, ' ','_');
+dateString = strrep(dateString, ':','_');
+ if makeVideo
+     v = VideoWriter([dateString '.avi']);
+      open(v);
+ end
+  
 for n = 1:nCycles
-    for t = (0:dt:nPhases*2)
-%     for t = t_span
+    for t = t_span
         
         % get time and transformation via interpolation
         phaseNow = interp1(timesList,phasesTable, t);
@@ -151,9 +158,7 @@ if ~sendCommands
 else
     pause(.01);
 end    
-        % scatter3(xyzFK(1,:), xyzFK(2,:), xyzFK(3,:), 'r');
-        %                 scatter3(xyzB(1,:), xyzB(2,:), xyzB(3,:), [], swingLegs, 'filled');
-        
+
         if ~inSupport
             disp('out')
         end
@@ -171,6 +176,11 @@ end
         
     end
 end
+
+ if makeVideo
+   close(v)  
+ end
+  
 %{
 clawAngle = [];
     cmd.position = nan(1,18+length(clawAngle));
