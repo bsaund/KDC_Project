@@ -96,7 +96,8 @@ for k = 1:nPhases
     % discourage the joints from coming too close together.
     CoMs = kin.getCenterOfMasses(thIK);
     %  http://stackoverflow.com/questions/19360047/how-to-build-a-distance-matrix-without-loop
-    CoMsInterest = CoMs(:,:,stanceLegs(~isOdd(stanceLegs)));
+%     CoMsInterest = CoMs(:,:,stanceLegs(~isOdd(stanceLegs)));    
+    CoMsInterest = CoMs(:,:,[2 4 6]);
     sizeCoMs = size(CoMsInterest);
     x = reshape(permute(CoMsInterest, [3, 2, 1]), [sizeCoMs(2)*sizeCoMs(3),sizeCoMs(1)]).'; % x;y;z for all points
     IP = x' * x;
@@ -104,13 +105,14 @@ for k = 1:nPhases
     % includes the distance to i to i.
     % pointDistCost = 1000*sigmf(-dEven+.04,[100 0]);
 %     pointDistCostEven =heaviside(-(dEven-.06)).*10000.*(dEven-.06).^2;
-    pointDistCostEven =heaviside(-(dEven-.06)).*100.*(dEven-.06).^2;
+    pointDistCostEven =heaviside(-(dEven-.07)).*500.*(dEven-.07).^2;
     pointDistCostEven(1:sizeCoMs(3)*sizeCoMs(2)+1:end) = 0; % don't penalize the link being itself!
     costPhases(k) =  costPhases(k) ...
         + sum(sum(pointDistCostEven));
     % odd side:
     %  CoMsInterest = CoMs(:,2:end-1,[1 3 5]); % I only care about collisions near center of leg
-    CoMsInterest = CoMs(:,:,stanceLegs(isOdd(stanceLegs)));
+%     CoMsInterest = CoMs(:,:,stanceLegs(isOdd(stanceLegs)));
+    CoMsInterest = CoMs(:,:,[1 3 5]);
     sizeCoMs = size(CoMsInterest);
     x = reshape(permute(CoMsInterest, [3, 2, 1]), [sizeCoMs(2)*sizeCoMs(3),sizeCoMs(1)]).'; % x;y;z for all points
     IP = x' * x;
@@ -118,7 +120,7 @@ for k = 1:nPhases
     % includes the distance to i to i.
     % pointDistCost = 1000*sigmf(-dOdd+.04,[100 0]);
 %     pointDistCostOdd =heaviside(-(dOdd-.06)).*10000.*(dOdd-.06).^2;
-    pointDistCostOdd =heaviside(-(dOdd-.06)).*100.*(dOdd-.06).^2;
+    pointDistCostOdd =heaviside(-(dOdd-.07)).*500.*(dOdd-.07).^2;
     pointDistCostOdd(1:sizeCoMs(3)*sizeCoMs(2)+1:end) = 0; % don't penalize the link being itself!
     costPhases(k) =  costPhases(k) ...
         + sum(sum(pointDistCostOdd));

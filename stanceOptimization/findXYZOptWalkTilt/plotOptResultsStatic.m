@@ -42,7 +42,7 @@ projBodyCoM = bodyCoM + temp*normals;
   
 %   plt = SnakeMonsterPlotter(); 
   plt.plot(thIK); hold on;
-    set(gcf, 'position', [10 100 500 500]);
+    set(gcf, 'position', [10 100 1000 1000]);
 projectedCOM = scatter3(0,0,0,'k', 'filled');
 supportLines = plot3(0,0,0,'k');
 % scatterCentroid = scatter3(0,0,0,'b');

@@ -2,9 +2,10 @@
 addpath(genpath('C:\Users\Julian\Box Sync\CMU sem 1+2\snakeMonster\KDC_project'));
 addpath(genpath('C:\Users\medgroup01\Documents\Julian\snakeMonster\KDC_Project'));
 
-sendCommands = 0;
-makeVideo = 1; % video recording flag
+sendCommands = 1;
+makeVideo = 0; % video recording flag
 nCycles = 1;
+nClaws = 0;
 
 % initialize robot
 % command structure for if sending commands
@@ -18,13 +19,13 @@ if sendCommands
     nCycles = 2;
 end
 
-if ~sendCommands
+% if ~sendCommands
    close all;
    setupPlot;
 
-end
+% end
 
-kin = SnakeMonsterKinematics();
+kin = SnakeMonsterKinematics('gripper', nClaws);
 
 nStanceLegs = length(stanceLegs);
 xyStep = stateOpt(1:2*nStanceLegs);
@@ -70,7 +71,6 @@ transformsTable = zeros(nPhases*2, 5);
 transformsMatT = transformsMat.';
 transformsTable(1:2:end,:) = transformsMatT;
 transformsTable(2:2:end,:) = transformsMatT;
-% transformsTable = circshift(transformsTable, 1);
 transformsTable = circshift(transformsTable, -1);
 transformsTable = [transformsTable(end,:); transformsTable];
 % timesList = (0:nPhases*2).';
@@ -153,20 +153,20 @@ for n = 1:nCycles
         projBodyCoMRot = TB_P*[projBodyCoM;1];
         distToLine = p_poly_dist(projBodyCoMRot(1),projBodyCoMRot(2), xOrderedRot(1,:) ,xOrderedRot(2,:),  1);
     
-if ~sendCommands
+% if ~sendCommands
         updatePlot;
-else
+% else
     pause(.01);
-end    
+% end    
 
         if ~inSupport
             disp('out')
         end
-        %
-        %   if makeVideo
-        %      writeVideo(v,getframe);
-        %
-        %   end
+        
+          if makeVideo
+             writeVideo(v,getframe);
+        
+          end
         
         
         if sendCommands

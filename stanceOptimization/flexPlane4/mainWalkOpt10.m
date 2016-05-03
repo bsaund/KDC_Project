@@ -23,6 +23,7 @@ global stepDirection stepLength phasesToTest swingAtPhasesToTest
 stanceLegs = [ 3 4 5 6]; % array of legs that are in the air, stretched out far
 % stanceLegs = [ 1 2 5 6]; % array of legs that are in the air, stretched out far
 
+nClaws = 2; % number of claws on the robot
 
 %% sorting and making leg arrays
 stanceLegs =sort(stanceLegs); % in case they werent in order
@@ -87,16 +88,16 @@ th0 = zeros(1, 3*nLegs); % joint angles: for each leg, proximal to distal
 th0([13,16]) = [pi/4, -pi/4]; % start back legs pointing back
 params = SMPhysicalParameters();
 SMData = makeSMData(params);
-kin = SnakeMonsterKinematics; % does all the kinamatics
+kin = SnakeMonsterKinematics('gripper', nClaws); % does all the kinamatics
 % masses = kin.getLegMasses();
 %% find the "reach out" joint angles for the extra legs
 xyz0 = kin.getLegPositions(th0); % zero position of all the legs
 xyz = xyz0;
  % set the non-walking legs to be up in the air
  for i = 1:(6-nStanceLegs) 
-     xyz(3,extraLegs(i)) =xyz0(3,extraLegs(i)) + .2;
-     xyz(2,extraLegs(i)) =xyz0(2,extraLegs(i))*3;
-     xyz(1,extraLegs(i)) =xyz0(1,extraLegs(i))*(.097-xyz0(2,extraLegs(i)))/.097;
+     xyz(3,extraLegs(i)) = 0.1;%xyz0(3,extraLegs(i)) + .2;
+     xyz(2,extraLegs(i)) =.25 ;%xyz0(2,extraLegs(i))*3;
+     xyz(1,extraLegs(i)) =0;%xyz0(1,extraLegs(i))*(.097-xyz0(2,extraLegs(i)))/.097;
  end
  xyzExtra = xyz(:,extraLegs);
 
@@ -125,11 +126,10 @@ transformMat0 = repmat([thetaX; thetaY; rB_P], [1,nPhases] );
 % EACH column is values at a phase to test 
 transforms = transformMat0(:);
 
- state0 = [xyStep0.'; transformMat0(:)];
+%  state0 = [xyStep0.'; transformMat0(:)];
 
 % % get the starting position from the last stance optimizer:
-% state0 = stateOpt;
-
+state0 = stateOpt;
 
 %% set up the optimization 
  % constraints
@@ -141,8 +141,9 @@ evenInds= find(mod(stanceLegs,2)==0);
 footUBMat = ones(2,nStanceLegs)*10; footLBMat = -footUBMat;
 footUBMat(1,evenInds) = stanceLegBaseXY(1,evenInds) - (params.l(1) + params.l(1)); % not below body
 footLBMat(1,oddInds) = stanceLegBaseXY(1,oddInds) +  (params.l(1) + params.l(1));  % not below body
-footUBMat(1,oddInds) = .35+.05; % not too far out 
-footLBMat(1,evenInds) = -.35-.05; % not too far out 
+footUBMat(1,oddInds) = .3; % not too far out 
+footLBMat(1,evenInds) = -.3; % not too far out 
+footUBMat(2,:) = .3; % not too far forward 
 
 % bounds for the transformation
 transformUBMat = zeros(size( transformMat0));
@@ -210,7 +211,7 @@ options = optimset('TolCon', 1e-4, 'TolFun', 1e-4, 'MaxFunEvals', 10000 );
 costFun = @costWalk10;
 nonlinconFun = @nonlinconWalk10;
 
-plt = SnakeMonsterPlotter(); 
+plt = SnakeMonsterPlotter('gripper', nClaws); 
 
 %% the big optimization
 evals = 0; % number of evaluations of cost function
